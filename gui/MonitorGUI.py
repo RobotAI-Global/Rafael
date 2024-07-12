@@ -41,7 +41,7 @@ import sys
 
 #import os
 
-sys.path.insert(1, r'.\\robot')
+
 #sys.path.insert(1, r'.\\vision')
 
 #%%
