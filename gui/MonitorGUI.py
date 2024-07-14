@@ -83,7 +83,7 @@ style.use("dark_background")
 #try:
 from gui.ConfigManager import ConfigManager
 from gui.DisplayManager  import DisplayManager
-from robot.RobotAPI import RobotAPI as RobotManager
+from robot.Robot import Robot as RobotManager
 from disc.ControllerHHC import IOController
 from gui.TkinkerJson  import JsonEditor
 from gui.PoseGUI import PoseGUI

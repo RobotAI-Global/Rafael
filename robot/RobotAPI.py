@@ -1,4 +1,4 @@
-from robot.Robot import Robot
+from robot_new.Robot import Robot
 import math
 
 # Logger
