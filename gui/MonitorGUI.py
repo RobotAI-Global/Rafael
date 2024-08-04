@@ -144,8 +144,8 @@ class MonitorGUI:
         #self.ip_robot  = "192.168.1.16"
         #self.port_robot = 5033
         #self.rbm        = None  # robot manager
-        self.rbm        = RobotManager(self) #ip = self.ip_robot, port = self.port_robot) #RobotServerThread(host = self.ip, port = self.port,  debug=self.debugOn, config = self.cfg)
-        self.ioc        = IOController(self)
+        self.rbm        = RobotManager(parent = self) #ip = self.ip_robot, port = self.port_robot) #RobotServerThread(host = self.ip, port = self.port,  debug=self.debugOn, config = self.cfg)
+        self.ioc        = IOController(parent = self)
 
         self.robot_speed = 100  # some strnage numbers
         self.robot_pose  = np.zeros((1,6))

@@ -1,6 +1,10 @@
 """
 
 RobotAI : Robot Neura Interface
+
+Login:
+     basicuser
+
 Usage :
 
 
@@ -102,8 +106,9 @@ class Robot:
         #super().__init__()
         self.parent = parent
         
-        self.__server_address = ("192.168.2.13", 65432)
-        self.__functions = ["get_functions","initialize_attributes"]
+        self.__server_address = ("192.168.2.13", 65432) # small robot
+        #self.__server_address = ("192.168.2.14", 8081)
+        self.__functions = ["get_functions","stop","initialize_attributes"]
         self.counter = 0
         self.multiplier = 1
         self.logger = log
@@ -117,7 +122,7 @@ class Robot:
             if method != "list_methods":
                 setattr( self,  method, MethodType(generate_function(method, self.__server_address), self), )     
         
-        self.logger.info(f"Robot initialized with following functions {self.__functions} and robot version {self.version}")
+        #self.logger.info(f"Robot initialized with following functions {self.__functions} and robot version {self.version}")
         if self.version != VERSION:
             self.logger.warning(f"Current client version is not compatiable with the version of the server running on the robot. Some of the functionlities specified in the documentation might not work in the intended way. Please upgrade to the correct version .Client Version : {VERSION},Server Version : {self.version}")
         
@@ -126,10 +131,11 @@ class Robot:
     def help(self, name):
         print(self.get_doc(name))  
     
-    def print(self, txt, stam = None):
+    def tprint(self, txt, stam = None):
         "stam supports print line 2 arguments"
         txt = txt + str(stam) if stam is not None else txt
-        self.logger.info(txt)
+        #self.logger.info(txt)
+        print(txt)
         
 #    def connect(self):
 #        self.__functions = ['move_joint','move_linear', 'move_circular', 'move_composite', 'record_path', 'power',\
@@ -148,9 +154,9 @@ class Robot:
         methods = self.get_functions()
         table = [] #PrettyTable()
         #table.field_names = ['S.No',"Function Name"]
-        for index,method in enumerate(methods):
+        for index, method in enumerate(methods):
             #table.add_row([index+1,method])
-            self.print(method)
+            self.tprint(method)
         return table
         
     def notify_diagnostics(self):
@@ -171,23 +177,23 @@ class Robot:
         self.monitor.start()
         
 
-    def robot_info(self):    
-        self.print('Robot Name: ',       self.robot_name)
-        self.print('Number Of Axis: ',   self.dof)
-        self.print('Robot IP Address: ', self.kURL)
-        self.print('Home Position: ',    self.get_point("Home"))
-        self.print('Current Joint Angles: ', self.robot_status("jointAngles"))
-        self.print('Current Position: ', self.robot_status("cartesianPosition"))            
+    def robot_info(self):     
+        self.tprint('Robot Name: ',       self.robot_name)
+        self.tprint('Number Of Axis: ',   self.dof)
+        self.tprint('Robot IP Address: ', self.kURL)
+        self.tprint('Home Position: ',    self.get_point("Home"))
+        self.tprint('Current Joint Angles: ', self.robot_status("jointAngles"))
+        self.tprint('Current Position: ', self.robot_status("cartesianPosition"))            
             
-    def setIO(self, io_name = "DO_1", target_value = True):    # Input -> Which I/O, On/Off
+    def set_io(self, io_name = "DO_1", target_value = True):    # Input -> Which I/O, On/Off
         isSuccess = self.r.io("get", io_name, target_value)
         return isSuccess # Output -> I/O state
     
-    def getIO(self, io_name):    # Input -> Which I/O, On/Off
+    def get_io(self, io_name):    # Input -> Which I/O, On/Off
         isSuccess = self.r.io("set", io_name)
         return isSuccess # Output -> I/O state
     
-    def robotPower(self, pwr_switch = None):    # Input -> pwr_switch = True/False
+    def robot_power(self, pwr_switch = None):    # Input -> pwr_switch = True/False
         if pwr_switch == True:
             isSuccess = self.r.power_on()
         elif pwr_switch == False:
@@ -197,7 +203,7 @@ class Robot:
 
         return isSuccess
         
-    def robotMode(self, rMode = "None"): # Input -> rMode = "teach"/"automatic"/"semi_automatic"
+    def robot_mode(self, rMode = "None"): # Input -> rMode = "teach"/"automatic"/"semi_automatic"
         if rMode == "teach":
             isSuccess = self.r.switch_to_teach_mode()
         elif rMode == "automatic":
@@ -210,19 +216,19 @@ class Robot:
 
         return isSuccess  
     
-    def moveLinearToPoint(self, pointName, speed = 0.5, acceleration = 0.2, blend_radius = 0.005):   # Input = X, Y, Z (meter); R, P, Y (radian)
-        isSuccess, coordList = self.getPoint(pointName, 'Cartesian')
+    def move_linear_to_point(self, pointName, speed = 0.5, acceleration = 0.2, blend_radius = 0.005):   # Input = X, Y, Z (meter); R, P, Y (radian)
+        isSuccess, coordList = self.r.get_point(pointName, 'Cartesian')
 
         if isSuccess:
             tx, ty, tz, r, p, y = coordList
-            isMotionOk = self.moveLinearToCoord_fromCurrentPose(tx, ty, tz, r, p, y, speed, acceleration, blend_radius)
+            isMotionOk = self.move_linear_to_coord_from_current_pose(tx, ty, tz, r, p, y, speed, acceleration, blend_radius)
         else:
             isMotionOk = False
             print("moveLinearToPoint: Can not read point position")
 
         return isMotionOk # move is successful 
     
-    def moveLinearToCoord_fromCurrentPose(self, tx, ty, tz, r, p, y, speed = 0.5, acceleration = 0.2, blend_radius = 0.005):   # Input = X, Y, Z (mm); R, P, Y (degrees)
+    def move_linear_to_coord_from_current_pose(self, tx, ty, tz, r, p, y, speed = 0.5, acceleration = 0.2, blend_radius = 0.005):   # Input = X, Y, Z (mm); R, P, Y (degrees)
         coordList = []
         coordList.extend((tx, ty, tz, r, p, y))
         coordList = self.mmd_To_mr(coordList)
@@ -241,68 +247,70 @@ class Robot:
 
         return isMotionOk  # move is successful 
     
-        
-    def Connected(self):
+    # ---------------------------------
+    # additional interfaces    
+    def is_connected(self):
         # check if the robot exists
         try:
-            self.print('Robot Name: ', self.robot_name)
+            self.tprint('Robot Name: ', self.robot_name)
             ret = True
         except:
-            self.print('Can not locate the robot')
+            self.tprint('Can not locate the robot')
             ret = False
         return ret     
     
-    def RobotData(self):    
-        self.Print('Robot Name: ', self.r.robot_name)
-        self.Print('Number Of Axis: ', self.r.dof)
-        self.Print('robot IP Address: ', self.r.kURL)
-        self.Print('Home Position: ', self.r.get_point("Home"))
-        self.Print('Current Joint Angles: ', self.r.robot_status("jointAngles"))
-        self.Print('Current Position: ', self.r.robot_status("cartesianPosition"))
+#    def RobotData(self):   
+#        
+#        self.tprint('Robot Name: ', self.r.robot_name)
+#        self.tprint('Number Of Axis: ', self.r.dof)
+#        self.tprint('robot IP Address: ', self.r.kURL)
+#        self.tprint('Home Position: ', self.r.get_point("Home"))
+#        self.tprint('Current Joint Angles: ', self.r.robot_status("jointAngles"))
+#        self.tprint('Current Position: ', self.r.robot_status("cartesianPosition"))
         
-    def RobotPower(self, value = 'on'):
-        # r.power('on') / r.power('off')
-        if value in ['on','off']:
-            self.power(str(value))
-        else:
-            self.Print(f'input must be on or off - given {value}')
+#    def RobotPower(self, value = 'on'):
+#        # r.power('on') / r.power('off')
+#        if value in ['on','off']:
+#            self.power(str(value))
+#        else:
+#            self.tprint(f'input must be on or off - given {value}')
             
-    def GetRobotStatus(self):
-        sts = self.robot_status()
-        return sts
+#    def GetRobotStatus(self):
+#        sts = self.robot_status()
+#        return sts
         
-    def Stop(self, value):
+    def stop(self, value):
         # stop the robot
-        self.stop()        
+        self.r.stop()        
         
-    def MoveJoint(self, JointAngles, j_Speed, j_Acc):
-        #r.move_joint(p)
+#    def MoveJoint(self, JointAngles, j_Speed, j_Acc):
+#        #r.move_joint(p)
+#        
+#        # target_joint = [0.3,0.2,0.3,0,0,0]
+#        # r.move_joint(target_joint,speed=100,accelearation=70)
+#        
+#        # p = r.get_point("Home")
+#        # target_joint2 = [p['a1'], p['a2'], p['a3'], p['a4'], p['a5'], p['a6']]
+#        # r.move_joint(target_joint2,speed=100,accelearation=70)
+#        
+#        self.move_joint(JointAngles, speed = j_Speed, accelearation = j_Acc)
+#        self.tprint("move_joint")
         
-        # target_joint = [0.3,0.2,0.3,0,0,0]
-        # r.move_joint(target_joint,speed=100,accelearation=70)
+#    def MoveLinear(self, Position, l_Speed, l_Acc):
+#        #r.move_linear(p)
+#        
+#        # target_linear = [25,30,35,0,0,0]
+#        # r.move_linear(target_linear,speed=0.8,accelearation=1)
+#        
+#        # p = r.get_point("Home")
+#        # target_Position = [p['originX'], p['originY'], p['originZ'],
+#        #                   p['originA'], p['originB'], p['originC']]
+#        # r.move_linear(target_Position,speed=0.5,accelearation=0.5)
+#        
+#        self.r.move_linear_from_current_position(Position, speed = l_Speed, accelearation = l_Acc)
+#        self.tprint("move_linear")
         
-        # p = r.get_point("Home")
-        # target_joint2 = [p['a1'], p['a2'], p['a3'], p['a4'], p['a5'], p['a6']]
-        # r.move_joint(target_joint2,speed=100,accelearation=70)
-        
-        self.move_joint(JointAngles, speed = j_Speed, accelearation = j_Acc)
-        self.Print("move_joint")
-        
-    def MoveLinear(self, Position, l_Speed, l_Acc):
-        #r.move_linear(p)
-        
-        # target_linear = [25,30,35,0,0,0]
-        # r.move_linear(target_linear,speed=0.8,accelearation=1)
-        
-        # p = r.get_point("Home")
-        # target_Position = [p['originX'], p['originY'], p['originZ'],
-        #                   p['originA'], p['originB'], p['originC']]
-        # r.move_linear(target_Position,speed=0.5,accelearation=0.5)
-        
-        self.move_linear(Position, speed = l_Speed, accelearation = l_Acc)
-        self.Print("move_linear")
-        
-    def GetInputStatus(self, InputName):
+    def get_io_status(self, InputName = "D0_1"):
         #print(r.io("get",io_name="DO_1"))
         self.InputValue = self.r.io("get",io_name = str(InputName))
         
@@ -313,7 +321,7 @@ class Robot:
             
         return val
     
-    def SetOutput(self, OutputName, Action):
+    def set_io_value(self, OutputName, Action = 'on'):
         # r.io("set",io_name="DO_1",target_value=True)
         
         if Action == 'on':
@@ -321,34 +329,38 @@ class Robot:
         else:
             self.r.io("set",io_name = str(OutputName),target_value = False)
             
-    def SetGripper(self, Action):
+    def set_gripper(self, Action):
         # r.gripper("close")
         self.r.gripper(str(Action))
         
-    def GetPosition(self, g_Type, g_PosName):
-        #p    = r.get_point("Home")
-        #p['a1'] = -p['a1']
+    def get_point_pose(self, g_Type = "Position", g_PosName = "Home"):
+        "g_Type - Position or Joint"
+
         
-        p = self.get_point(str(g_PosName))
+        # list of joint angles
+        target       = self.get_point(str(g_PosName))
         
-        if g_Type == 'Position':            
-            target = [p['originX'], p['originY'], p['originZ'],
-                              p['originA'], p['originB'], p['originC']]
-        elif g_Type == 'Joint':
-            target = [p['a1'], p['a2'], p['a3'], p['a4'], p['a5'], p['a6']]
+#        if g_Type == 'Position':            
+#            target = [p['originX'], p['originY'], p['originZ'], p['originA'], p['originB'], p['originC']]
+#        elif g_Type == 'Joint':
+#            target = [p['a1'], p['a2'], p['a3'], p['a4'], p['a5'], p['a6']]
             
+        #self.tprint(str(target))
         return target  
     
-    def GetCurrent(self, g_Type):
+    def get_current_pose(self, g_Type = 'Position'):
         if g_Type == 'Position':
             current = self.robot_status("cartesianPosition")
             
         elif g_Type == 'Joint':
             current = self.robot_status("jointAngles")
           
+        quart   = current[3:7]
+        rpy     = self.quaternion_to_rpy(quart[0],quart[1],quart[2],quart[3])
+        print('RPY' , rpy)
         return current
     
-    def DegreeToRadians(self, deg):        
+    def degree_to_radians(self, deg):        
 
         radians = np.radians(deg)
     
@@ -356,7 +368,7 @@ class Robot:
         
         return radians
     
-    def RadiansToDegree(self, rad):
+    def radians_to_degree(self, rad):
         
         degrees = np.degrees(rad)
 
@@ -364,12 +376,8 @@ class Robot:
         
         return degrees
     
-    def Print(self, txt = ''):
-        self.print(txt)
-        #log.info(txt)
-        #log.info(txt)      
 
-    def testCommands(self):
+    def test_commands(self):
             
         self.robotPower(True)
         self.robotMode('automatic')
@@ -396,52 +404,59 @@ class TestRobotAPI: #unittest.TestCase
     
     def __init__(self):
         self.r = Robot()
+        
+    def TestName(self):
+        
+        self.r.robot_info() 
+        self.r.list_methods()
+        
+        currentPosition = self.r.get_point_pose('Position', 'Home')
+        print('Current Position: ', currentPosition)
+        
+        currentJoint = self.r.get_point_pose('Joint', 'Home')
+        print('Current Joint: ', currentJoint)
+        
+        currentPosition = self.r.get_current_pose('Position')
+        print('Current Position: ', currentPosition)
+        XPos            = currentPosition[0]
+        print('X: ', XPos)
+        #currentPosition[0] = currentPosition[0] + 10
+        #print('Current Position: ', currentPosition)        
  
     def TestMotion(self):
         self.r.robot_info() 
-        #r.list_methods()
+        self.r.list_methods()
         self.r.power_on()
         self.r.switch_to_automatic_mode()
-        self.r.robot_info()
+        #self.r.robot_info()
         
         p = self.r.get_current_cartesian_pose()
-        self.r.print(p)
-        p[0] = p[0] - 0.1
+        self.r.tprint(p)
+        p[0] = p[0] + 0.1
     
         self.r.move_linear_from_current_position([p], 5, 1)      
-                     
-    def TestName(self):
-        self.r.robot_info() 
-        CurrentPosition = self.r.GetPosition('Position', 'Home')
-        print('Current Position: ', CurrentPosition)
-        CurrentJoint = self.r.GetPosition('Joint', 'Home')
-        print('Current Joint: ', CurrentJoint)
         
-        CurrentPosition = self.r.GetCurrent('Position')
-        XPos = CurrentPosition[0]
-        print('X: ', XPos)
-        CurrentPosition[0] = CurrentPosition[0] + 10
-        print('Current Position: ', CurrentPosition)
+    def TestCommands(self):
+        self.r.robot_info() 
+        self.r.list_methods()
+        self.r.power_on()
+        self.r.switch_to_automatic_mode()
+        
+        
+        p = self.r.get_current_cartesian_pose()
+        self.r.tprint(p)
+        p[0] = p[0] - 0.1
+    
+        self.r.move_linear_from_current_position([p], 5, 1)          
+                     
+
 
 #%%
 if __name__ == '__main__':
     
     #from Robot import TestRobotAPI
     tapi = TestRobotAPI()
-    #tapi.TestName()    
-    tapi.TestMotion()
+    tapi.TestName()    
+    #tapi.TestMotion() # ok
+    #tapi.TestCommands() # ok
     
-    
-#    r = Robot()
-#    #r.list_methods()
-#    r.power_on()
-#    r.switch_to_automatic_mode()
-#    r.robot_info()
-#    
-#    p = r.get_current_cartesian_pose()
-#    r.print(p)
-#    p[0] = p[0] - 0.1
-#
-#    r.move_linear_from_current_position([p], 5, 1)
-#    #r.move_linear(p, 5, 1)
-#    #r.test_move_linear()
