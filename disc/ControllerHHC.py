@@ -10,6 +10,9 @@ class IOController:
         self.ServerPort = 5000  # port number of the controller  
         self.client_socket = None
         
+    def Init(self):
+        self.Print('Init')
+        
     def ConnectToController(self):
         # Create a TCP/IP socket
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -113,6 +116,74 @@ class IOController:
         self.client_socket.close()
         print('Connection with the controller closed.')
         
+    def ControllerThread(self):  
+        "main thread"        
+        while not self.stopTask:
+            try:
+                self.Connect()    
+                print('Server is running')
+                while True:
+                    #                     
+                    self.ExecutePacket()
+                    
+            except Exception as e:
+                print(e)  
+                
+    def RunThread(self):
+        "running in the thread"
+        self.ts = Thread(target = self.ControllerThread)
+        self.ts.start()
+        self.ts.join()    
+        return True 
+
+
+    ## ------------------------------------  
+    # -- IO Control ---
+    ## ------------------------------------ 
+    def ioConnect(self):
+        # start
+        self.tprint('Starting IO connection ...')
+        
+        # maybe already running
+        if self.ioc is None:
+            # runs Robot server and Multi Object Detection
+            self.ioc    = IOController(self) #host = self.ip_vision, port = self.port_vision, debug = self.debugOn, config=self.cfg) #RobotServerThread(host = self.ip, port = self.port,  debug=self.debugOn, config = self.cfg)
+            self.ioc.ConnectToController()
+        elif self.ioc.IsConnected():   
+            self.tprint('IO Connection is alive')
+        else:
+            # need to connect
+            self.ioc.ConnectToController()
+            self.tprint('IO Connection is initiated')
+            
+    def ioStatus(self):
+        self.ioc.GetInputStatus()
+        self.tprint(f'Checking status')
+        
+    def ioReset(self):
+        # get specific bit info
+        addr = 0
+        self.ioc.ResetOutput(addr)
+        self.tprint(f'IO reset {addr}') 
+        
+    def ioGetInfo(self):
+        # get specific bit info
+        val = self.ioc.GetInputStatus(0)
+        self.tprint(f'IO received {val}')
+        
+    def ioSetInfo(self):
+        # get specific bit info  
+        addr = 0
+        val = 1
+        self.ioc.SetOutput(addr,val)
+        self.tprint(f'IO sending value {val} to {addr}')
+        
+    def ioDisconnect(self):
+        # disonnecteing
+        self.ioc.CloseConnectionWithController()   
+
+                
+        
     def Print(self, ptxt='',level='I'):
         if level == 'I':
             log.info(ptxt)
@@ -147,5 +218,4 @@ if __name__ == '__main__':
     c.Test()
         
         
-       
-        
+

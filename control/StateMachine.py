@@ -12,22 +12,6 @@ import logging as log
 
 log.basicConfig(level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s',  datefmt="%M:%S")
 
-##%% Woring
-#import logging 
-#
-#log = logging.getLogger(__name__)
-##
-#log.setLevel(logging.DEBUG)
-#ch = logging.StreamHandler()
-#ch.setLevel(logging.DEBUG)
-## create formatter
-#formatter = logging.Formatter('[%(asctime)s.%(msecs)03d] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s',  datefmt="%M:%S")
-## add formatter to ch
-#ch.setFormatter(formatter)
-#
-## add ch to logger
-#log.addHandler(ch)
-##
 
 #%% 
 # StateMachine/State.py
