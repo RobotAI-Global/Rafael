@@ -75,6 +75,7 @@ from threading import Thread
 from gui.ConfigManager import ConfigManager
 from robot.Robot import Robot as RobotManager
 from host.ComServer  import ComServer as HostManager
+from control.StateMachine import StateMachine
 from disc.ControllerHHC import IOController
 
 #except Exception as e:
@@ -87,36 +88,23 @@ from disc.ControllerHHC import IOController
 #    #from MsgJsonSimple import MsgPoseData
 #
 
-#ion() # turn interactive mode on
-    
-
-#import tkinter as tk
-
-#def FromUnsignedToSigned16(n):
-#    return n - 0x10000 if n & 0x8000 else n
-#def FromSignedToUnsigned16(n):
-#    return 0x10000 + n if n < 0 else n
 
 
 
-AXIS_VIEW_OPTIONS             = ["45-45","Left","Top"] #et
-SAFETY_MARGIN_Z               = 50  # mm
-TX_STEP_SIZE                  = 0.0400 # metr
-SCAN_POINTS                   = [[-500,-200, 400, 94, 0, -82],[-500,0,400, 94, 0, -82],[-500,0,600, 94, 0, -82],[-500,-220,600, 94, 0, -82],[-665.01 ,-251.23 , 648.96 , 94, 0, -82]]
+#
+#AXIS_VIEW_OPTIONS             = ["45-45","Left","Top"] #et
+#SAFETY_MARGIN_Z               = 50  # mm
+#TX_STEP_SIZE                  = 0.0400 # metr
+#SCAN_POINTS                   = [[-500,-200, 400, 94, 0, -82],[-500,0,400, 94, 0, -82],[-500,0,600, 94, 0, -82],[-500,-220,600, 94, 0, -82],[-665.01 ,-251.23 , 648.96 , 94, 0, -82]]
 HOME_POSE                     = [-500.0, 38.0, 430.0, 94.3088530785335, 0.6875493541569879, -82.21944360127314]
-        
-WORK_POINTS  = [[-0.520,-0.200, 0.400, -1.64,0, 1.7],   [-0.750,-0.200, 0.400, -1.64,0, 1.7],
-                [-0.500, 0,     0.400, -1.64,0, 1.7],   [-0.750, 0,     0.400, -1.64,0, 1.7],
-                [-0.500, 0,     0.600, -1.64,0, 1.7],   [-0.650, 0,     0.600, -1.64,0, 1.7],
-                [-0.500,-0.220, 0.600, -1.64,0, 1.7],   [-0.750,-0.220, 0.600, -1.64,0, 1.7]]
+#        
+#WORK_POINTS  = [[-0.520,-0.200, 0.400, -1.64,0, 1.7],   [-0.750,-0.200, 0.400, -1.64,0, 1.7],
+#                [-0.500, 0,     0.400, -1.64,0, 1.7],   [-0.750, 0,     0.400, -1.64,0, 1.7],
+#                [-0.500, 0,     0.600, -1.64,0, 1.7],   [-0.650, 0,     0.600, -1.64,0, 1.7],
+#                [-0.500,-0.220, 0.600, -1.64,0, 1.7],   [-0.750,-0.220, 0.600, -1.64,0, 1.7]]
 
 
-#    cfg         = module_dict['cfg']
-#    # prj         = module_dict['prj'] # load session
-#    # cam         = module_dict['cam']
-#    # obj         = module_dict['obj']
-#    # rob         = module_dict['rob']
-#    # lbl         = module_dict['lbl']
+
 
 #%% 
 class MainProgram:
@@ -134,13 +122,16 @@ class MainProgram:
         self.rbm        = RobotManager(parent = self)
 
         # host comm
-        self.host       = HostManager(parent = self)        
+        self.host       = HostManager(parent = self)    
+        
+        # connectio to IO
+        self.ioc        = IOController(parent = self)
         
         #self.ip_robot  = "192.168.1.16"
         #self.port_robot = 5033
         #self.rbm        = None  # robot manager
          #ip = self.ip_robot, port = self.port_robot) #RobotServerThread(host = self.ip, port = self.port,  debug=self.debugOn, config = self.cfg)
-        self.ioc        = IOController(parent = self)
+
 
 
 
@@ -170,8 +161,14 @@ class MainProgram:
         self.cfg.init()
         self.rbm.init()
         self.ioc.init()
-        self.host.init()
+        self.host.Init()
         self.rsm.init()
+        
+    def startModules(self):
+        "start running"
+        
+        self.host.RunThread()
+        
         
     ## -------------------------------
     #  -- TASK ---
