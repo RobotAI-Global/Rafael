@@ -19,18 +19,18 @@ Install:
 """
 server_version   = '0101'
 
-import os
+#import os
 #import tkinter as tk
 #import threading
 #import json
 import logging as log
 import time   # just to measure switch time
 #import logging
-import webbrowser
+
 
 #base_path     = os.path.abspath(".")
 #base_path      = r'D:\RobotAI\Design\apps\PickManager\gui\logo.ico' #os.path.dirname(os.path.realpath(__file__))
-iconFilePath  =  '.\\gui\\logo.ico' #os.path.join(base_path, '\logo.ico')
+#iconFilePath  =  '.\\gui\\logo.ico' #os.path.join(base_path, '\logo.ico')
 #base_path      = os.path.abspath(".")
 #iconFilePath  =  r'C:\robotai\SW\RobotManager\gui\logo.ico' #os.path.join(base_path, '.\\gui\\logo.ico')
 
@@ -44,7 +44,7 @@ iconFilePath  =  '.\\gui\\logo.ico' #os.path.join(base_path, '\logo.ico')
 log.basicConfig(level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)6s:%(lineno)3d} %(levelname)s - %(message)s',  datefmt="%M:%S")
 
 
-import numpy as np
+#import numpy as np
 #from threading import Thread
 
 
@@ -101,39 +101,14 @@ class MainProgram:
         # connectio to IO
         self.ioc        = IOController(parent = self)
         
-        #self.ip_robot  = "192.168.1.16"
-        #self.port_robot = 5033
-        #self.rbm        = None  # robot manager
-         #ip = self.ip_robot, port = self.port_robot) #RobotServerThread(host = self.ip, port = self.port,  debug=self.debugOn, config = self.cfg)
 
-
-
-
-        self.robot_speed = 100  # some strnage numbers
-        self.robot_pose  = np.zeros((1,6))
-        #self.home_pose   = np.array([-86.2, -225.6, 237.6, -177.0, 2.29, 138.6]) # chess
-        self.home_pose   = np.array(HOME_POSE)
-        
-        # receive message
-        #self.msgRecv   = {'Id': 0, 'Data' : 0}
-        
-        # host
-        #self.ip_vision         = '127.0.0.1'    
-        #self.ip_vision         = '192.168.1.130' # Uri comp
-        #self.port_vision       = 5555
-        #self.vis        = None #VisionManager(self.cfg)        
-        #self.sim        = None #MonitorComm(cfg)        
-        #self.sim_ts     = None  # simulator task handle
-        self.object_pose  = np.zeros((1,6))
-        
-        
     ## -------------------------------
     #  -- Init All---
     ## -------------------------------
     def initModules(self):
         "intialize all the modules - read some inint data from config file"
         self.cfg.init()
-        self.rbm.init()
+        self.rbm.Init()
         self.ioc.Init()
         self.host.Init()
         self.rsm.init()
@@ -143,6 +118,7 @@ class MainProgram:
         
         self.host.RunThread()
         self.rbm.RunThread()
+        self.ioc.RunThread()
         
         
     ## -------------------------------
@@ -320,4 +296,6 @@ class TestMainProgram:
 
 # --------------------------
 if __name__ == '__main__':
-    MainGUI()
+    from MainProgram import MainProgram
+    m = MainProgram()
+    m.mainTask()

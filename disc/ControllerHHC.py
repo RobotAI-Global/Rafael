@@ -1,5 +1,8 @@
 import socket
+#from queue import Queue
+from threading import Thread
 import logging as log
+import time
 
 class IOController:
     def __init__(self, parent=None):
@@ -13,7 +16,7 @@ class IOController:
     def Init(self):
         self.Print('Init')
         
-    def ConnectToController(self):
+    def Connect(self):
         # Create a TCP/IP socket
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         
@@ -123,8 +126,10 @@ class IOController:
                 self.Connect()    
                 print('Server is running')
                 while True:
-                    #                     
-                    self.ExecutePacket()
+                    
+                    self.ReciveData()
+                    time.sleep(0.5)
+                    self.SendData()
                     
             except Exception as e:
                 print(e)  
