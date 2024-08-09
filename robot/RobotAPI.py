@@ -5,8 +5,13 @@ API to the robot
 
 """
 
-from robot import Robot
-from robot import Packet
+try: # running from top
+    from robot.Robot  import Robot
+    from robot.Packet import Packet
+except:
+    print('running locally')
+    from Robot  import Robot
+    from Packet import Packet
 
 from queue import Queue
 from threading import Thread
@@ -18,6 +23,8 @@ import logging as log
 import sys
 log.basicConfig(stream=sys.stdout, level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s',  datefmt="%M:%S")
 
+SCAN_POINTS  = [[-500,-200, 400, 94, 0, -82],[-500,0,400, 94, 0, -82],[-500,0,600, 94, 0, -82],[-500,-220,600, 94, 0, -82],[-665.01 ,-251.23 , 648.96 , 94, 0, -82]]
+
 
 WORK_POINTS  = [[-0.520,-0.200, 0.400, -1.64,0, 1.7],   [-0.750,-0.200, 0.400, -1.64,0, 1.7],
                 [-0.500, 0,     0.400, -1.64,0, 1.7],   [-0.750, 0,     0.400, -1.64,0, 1.7],
@@ -28,8 +35,8 @@ WORK_POINTS  = [[-0.520,-0.200, 0.400, -1.64,0, 1.7],   [-0.750,-0.200, 0.400, -
 class RobotAPI:
     def __init__(self, parent=None):
         #super().__init__()
-        self.parent = parent
-        self.r      = Robot()
+        self.parent         = parent
+        self.r              = Robot()
 
         # Init  Neura robot class
         #self.r = Robot()
@@ -37,7 +44,7 @@ class RobotAPI:
         self.stopRobotTask = False
         
         # Init queue with data - to robot thraed transfer by server thread (recived data)
-        self.queueToRobot = Queue()
+        self.queueToRobot   = Queue()
         # Init queue with data - to server thread transfer by robot thraed (recived data)
         self.queueFromRobot = Queue()
         
@@ -48,11 +55,19 @@ class RobotAPI:
         # Init var RobotIsBusy 
         self.RobotIsBusy       = False
         
-        self.ts        = None
+        self.ts                 = None
   
         
     def Init(self):
-         print('init') 
+        "bring the process to the initial state"
+        self.RobotIsBusy       = False
+        self.stopRobotTask     = False
+        while not self.queueToRobot.empty():
+            self.queueToRobot.get()
+        while not self.queueFromRobot.empty():
+            self.queueToRobot.get()
+        print('Clearing queue and init')      
+
 
 # ------ Robot Tasks ------ 
     # When last_cmd_status = 0 (Task Done Successfully)  
@@ -211,7 +226,7 @@ class RobotAPI:
         
         # ------ Connecting to Robot ------        
     def Connect(self):
-        print('connecting to robot....')        
+        print('Connecting to robot....')        
 
     # ------ Executing Commands ------        
     def ExecutePacket(self):
@@ -228,29 +243,29 @@ class RobotAPI:
             print('0 - DEFULT command')           
             self.Home()
             
-        if msgPacket.command == 1:
+        elif msgPacket.command == 1:
             print('1 - STOP command')
             self.Stop()
             
-        if msgPacket.command == 2:
+        elif msgPacket.command == 2:
             print('2 - Load UUT to index table command')
             self.LoadUUTToTable()
             # self.r.move_joint(target_joint=[0,90,0,90,0,0],speed=100,accelearation=70)
             # self.r.move_joint(target_joint=[0,0,90,0,0,0],speed=100,accelearation=70)
             
-        if msgPacket.command == 3:
+        elif msgPacket.command == 3:
             print('3 - Unload UUT from index table command')
             self.UnloadUUTFromTable()
             
-        if msgPacket.command == 4:
+        elif msgPacket.command == 4:
             print('4 - Load UUT to test stand command')
             self.LoadUUTToTestStand()
             
-        if msgPacket.command == 5:
+        elif msgPacket.command == 5:
             print('5 - Unload UUT from test stand command')
             self.UnloadUUTFromTestStand()
             
-        if msgPacket.command == 6:
+        elif msgPacket.command == 6:
             print('6 - Get staus command')
             msgPacket.msgSize = 60
             msgPacket.cmdCode = 53
@@ -272,7 +287,7 @@ class RobotAPI:
             # Other commands just execute robot movments and logic
             self.queueFromRobot.put(msgPacket)            
             
-        if msgPacket.command == 7:
+        elif msgPacket.command == 7:
             print('7 - Get bit results command')
             msgPacket.msgSize = 64
             msgPacket.cmdCode = 52                
@@ -296,29 +311,40 @@ class RobotAPI:
             # Other commands just execute robot movments and logic
             self.queueFromRobot.put(msgPacket)
             
-        if msgPacket.command == 8:
-            print('8 - Connections counter zeroise command')             
+        elif msgPacket.command == 8:
+            print('8 - Connections counter zeroise command')   
+            
+        else:
+            print('ERROR - wrong command %s' %str(msgPacket.command))
 
 
     def RobotThread(self):  
         "main thread"        
+        self.Connect()    
+        print('Starting robot thread')
+        self.Init()
         while not self.stopRobotTask:
-            try:
-                self.Connect()    
-                print('Server is running')
-                while True:
-                    #                     
-                    self.ExecutePacket()
+            try:                    
+                self.ExecutePacket()
                     
             except Exception as e:
                 print(e)  
+                self.stopRobotTask = True
                 
     def RunThread(self):
         "running in the thread"
         self.ts = Thread(target = self.RobotThread)
         self.ts.start()
-        self.ts.join()    
-        return True             
+        #self.ts.join()    
+        return True    
+
+    def CheckThreadIsAlive(self):
+        return self.ts.isAlive()
+
+    def StopThread(self):
+        "stop running thread"
+        self.stopRobotTask        = True
+         
         
     def CloseConnection(self):
         # close the connection
@@ -336,13 +362,15 @@ class RobotAPI:
             ret = False
         return ret
         
-    def RobotData(self):    
-        self.Print('Robot Name: ', self.r.robot_name)
-        self.Print('Number Of Axis: ', self.r.dof)
-        self.Print('robot IP Address: ', self.r.kURL)
-        self.Print('Home Position: ', self.r.get_point("Home"))
-        self.Print('Current Joint Angles: ', self.r.robot_status("jointAngles"))
-        self.Print('Current Position: ', self.r.robot_status("cartesianPosition"))
+    def RobotData(self): 
+        "show some robot info"
+        self.r.robot_info() 
+#        self.Print('Robot Name: ', self.r.robot_name)
+#        self.Print('Number Of Axis: ', self.r.dof)
+#        self.Print('robot IP Address: ', self.r.kURL)
+#        self.Print('Home Position: ', self.r.get_point("Home"))
+#        self.Print('Current Joint Angles: ', self.r.robot_status("jointAngles"))
+#        self.Print('Current Position: ', self.r.robot_status("cartesianPosition"))
         
     def RobotPower(self, value = 'on'):
         # r.power('on') / r.power('off')
@@ -452,7 +480,7 @@ class RobotAPI:
     # -- Robot Control ---
     ## -----------------------------    
         
-    def robotConnect(self):
+    def RobotConnect(self):
         # start
         self.tprint('Starting Robot connection ...')
         
@@ -473,7 +501,7 @@ class RobotAPI:
         #self.rbm.setPowerOn()
         #self.rbm.setReleaseBrake()
 
-    def robotStop(self):
+    def RobotStop(self):
         # start
         self.tprint('Stop Robot  ...')
         
@@ -484,13 +512,13 @@ class RobotAPI:
         
         self.rbm.Stop()
 
-    def robotCommState(self):
+    def RobotCommState(self):
         # comm problems?
         
         comm_state = self.rbm.GetRobotStatus()
         self.tprint("Robot status: %s" %str(comm_state))
 
-    def robotStatus(self):
+    def RobotStatus(self):
         # start
         self.tprint('Getting Robot status ...')
 
@@ -503,7 +531,7 @@ class RobotAPI:
         self.tprint(str(stat))
 
 
-    def robotDisConnect(self):
+    def RobotDisConnect(self):
         # start
         self.tprint('Disconnect from Robot ...')
         
@@ -520,14 +548,14 @@ class RobotAPI:
 
         self.tprint('Robot is stopped')  
         
-    def robotSetRobotSpeed(self):
+    def RobotSetRobotSpeed(self):
         # set speed 1-100
         speedVal = np.maximum(10,np.minimum(200,self.sliderCount))        
         self.robot_speed = speedVal
         
         self.tprint('Robot speed set : %s' %str(speedVal)) 
         
-    def robotGetGripperPose(self):
+    def RobotGetGripperPose(self):
         # read pose
         self.tprint('Robot read pose ... ') 
         
@@ -551,13 +579,13 @@ class RobotAPI:
         self.robot_pose = robotPose
         return robotPose
     
-    def robotSetGripperPose(self):
+    def RobotSetGripperPose(self):
         # set pose
         self.tprint('Robot set pose GUI ... ') 
         
        
         
-    def robotMarkWorkPosition(self):
+    def RobotMarkWorkPosition(self):
         # read pose
         self.tprint('Robot shows work area ... ') 
 
@@ -571,7 +599,7 @@ class RobotAPI:
             print('Robot gripper command %d ... ' %val) 
             val = 1 - val
 
-    def robotGoHome(self):
+    def RobotGoHome(self):
         # read pose
         self.tprint('Robot home pose ... ') 
                
@@ -583,7 +611,7 @@ class RobotAPI:
         robotPose = self.home_pose #[-0.689, -0.121, 1.035, -2.0, 0.0, 2.0]
         self.robotAbsoluteMovePose(robotPose)
 
-    def robotSetHomePose(self):
+    def RobotSetHomePose(self):
         # setting home pose
         self.tprint('Robot set current pose to be home pose ... ') 
         
@@ -592,7 +620,7 @@ class RobotAPI:
         self.home_pose[1] = robotPose[1]
         self.home_pose[2] = robotPose[2]
 
-    def robotGripperOnOff(self,val = 1):
+    def RobotGripperOnOff(self,val = 1):
         # set gripper
         if val < 0.5:
             self.rbm.SetGripper('close')
@@ -601,7 +629,7 @@ class RobotAPI:
             
         self.tprint('Robot gripper command %d.' %(val)) 
         
-    def robotDiffMovePose(self, dPose = np.zeros((1,6))):
+    def RobotDiffMovePose(self, dPose = np.zeros((1,6))):
         # read pose
         # maybe already running
         if self.rbm is None or self.rbm.connected() is False:
@@ -634,7 +662,7 @@ class RobotAPI:
         self.tprint('Going to Robot pose %s ' %str(robotPose))
         self.rbm.setmovel(robotPose, num1 = str(self.robot_speed), num2= str(self.robot_speed), num3= str(self.robot_speed))
         
-    def robotAbsoluteMovePose(self, dPose = [0]*6):
+    def RobotAbsoluteMovePose(self, dPose = [0]*6):
         # move to pose
 
         # maybe already running
@@ -666,11 +694,13 @@ class RobotAPI:
         #isOk, robotPose, msg = self.rbm.setmovel(robotPose, num1 = str(self.robot_speed), num2= str(self.robot_speed), num3= str(self.robot_speed))
         self.rbm.setmovel(robotPose)
         return 
+    
+    
     ## ------------------------------------  
     # -- Task --      
     ## ------------------------------------ 
         
-    def robotMultiPointMotion(self):
+    def RobotMultiPointMotion(self):
         # check multi point motion as deefined by China
         self.tprint('Starting point motion ...')
 
@@ -695,7 +725,7 @@ class RobotAPI:
         self.tprint('Robot finished the scan.')
 
 
-    def robotDetectAndMoveToPoint(self):
+    def RobotDetectAndMoveToPoint(self):
         # start
         #self.tprint('Client sending request to robot. Go Home Pose ...')
         #self.robotAbsoluteMovePose([-356,-654,285,-90,0,140])
@@ -717,7 +747,7 @@ class RobotAPI:
 
         self.tprint('Robot is at object pose - check.')
 
-    def robotScanDetectMove(self):
+    def RobotScanDetectMove(self):
         # scan multiple position detect and move to the points
         self.tprint('Starting scan %s times...' %str(self.sliderCount))
 
@@ -742,7 +772,7 @@ class RobotAPI:
 
         self.tprint('Robot finished the scan.')
 
-    def robotDetectMoveAndRepeat(self):
+    def RobotDetectMoveAndRepeat(self):
         # touches the point several times
         SMALL_DIFF_POSE    = [[ 0,  0, 0, 0 ,0, 0],
                               [ 0, -50, 0, 0, 0, 0],
@@ -784,50 +814,48 @@ class RobotAPI:
         log.info(txt)    
 
     # ------ For testing only ------
-    def TestRobot(self):
-        print('testing robot')
-         
-        print(self.r.robot_name)
-        print(self.r.dof)
-        print(self.r.kURL)
-        print(self.r.move_joint(target_joint=[0,0,0,0,0,0],speed=100,accelearation=70))
-        # print(r.get_point("Home"))
-        # print(r.robot_status("jointAngles"))
-        # print(r.io("get",io_name="DO_1"))
-
-        #string_value = tcp_client.receive_Data()
-        io_value = self.r.io("get",io_name="DO_1")
-
-        if io_value == 0:
-            self.r.move_joint()
-            self.r.gripper("close")
-            self.r.move_linear()
-            self.r.io("set",io_name="DO_1",target_value=True)           
+#    def TestRobot(self):
+#        print('testing robot')
+#         
+#        print(self.r.robot_name)
+#        print(self.r.dof)
+#        print(self.r.kURL)
+#        print(self.r.move_joint(target_joint=[0,0,0,0,0,0],speed=100,accelearation=70))
+#        # print(r.get_point("Home"))
+#        # print(r.robot_status("jointAngles"))
+#        # print(r.io("get",io_name="DO_1"))
+#
+#        #string_value = tcp_client.receive_Data()
+#        io_value = self.r.io("get",io_name="DO_1")
+#
+#        if io_value == 0:
+#            self.r.move_joint()
+#            self.r.gripper("close")
+#            self.r.move_linear()
+#            self.r.io("set",io_name="DO_1",target_value=True)           
        
 #%% Tests           
-class TestRobotAPI(): #unittest.TestCase
+class TestRobotAPI: #unittest.TestCase
     
     def __init__(self):
-        self.r = RobotAPI()
+        self.rapi = RobotAPI()
         
                      
-    def TestName(self):
-        self.r.RobotData() 
-        CurrentPosition = self.r.GetPosition('Position', 'Home')
-        print('Current Position: ', CurrentPosition)
-        CurrentJoint = self.r.GetPosition('Joint', 'Home')
-        print('Current Joint: ', CurrentJoint)
+    def TestRunThread(self):
+        "testing thread start"
+        #self.rapi.Init() 
+        self.rapi.RunThread() 
+        time.sleep(10)
+        self.rapi.StopThread()
+        isOK = self.rapi.CheckThreadIsAlive()
+        print('Check', isOK)
         
-        CurrentPosition = self.r.GetCurrent('Position')
-        XPos = CurrentPosition[0]
-        print('X: ', XPos)
-        CurrentPosition[0] = CurrentPosition[0] + 10
-        print('Current Position: ', CurrentPosition)
             
             # self.MoveLinear(CurrentPosition, 0.5, 0.5)
             
 #%%
             
 if __name__ == '__main__':
-    from RobotAPI import TestRobotAPI as tapi
-    tapi.TestName()
+    #from RobotAPI import TestRobotAPI
+    tapi = TestRobotAPI()
+    tapi.TestRunThread()

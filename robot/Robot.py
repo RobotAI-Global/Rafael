@@ -28,6 +28,7 @@ import sys
 import json
 from threading import Thread
 import time
+import numpy as np
 
 OS = None
 if sys.platform == "linux":
@@ -80,9 +81,11 @@ def generate_function(function_name, address):
                 win32api.SetConsoleCtrlHandler(self.stop, True)
         except Exception as e:
             print(e)
-            self.logger.debug("Not attaching signal handlers")
+            #self.logger.debug
+            print("Not attaching signal handlers")
             
-        self.logger.info(f"{function_name} called with args {args}, {kwargs}")
+        #self.logger.info(f"{function_name} called with args {args}, {kwargs}")
+        print(f"{function_name} called with args {args}, {kwargs}")
         data = {"function": function_name, "args": args, "kwargs": kwargs}
         sock.sendall(json.dumps(data).encode("utf-8"))
         new_data = sock.recv(8192)
@@ -124,7 +127,8 @@ class Robot:
         
         #self.logger.info(f"Robot initialized with following functions {self.__functions} and robot version {self.version}")
         if self.version != VERSION:
-            self.logger.warning(f"Current client version is not compatiable with the version of the server running on the robot. Some of the functionlities specified in the documentation might not work in the intended way. Please upgrade to the correct version .Client Version : {VERSION},Server Version : {self.version}")
+            #self.logger.warning(f"Current client version is not compatiable with the version of the server running on the robot. Some of the functionlities specified in the documentation might not work in the intended way. Please upgrade to the correct version .Client Version : {VERSION},Server Version : {self.version}")
+            self.tprint(f"Current client version is not compatiable with the version of the server") # running on the robot. Some of the functionlities specified in the documentation might not work in the intended way. Please upgrade to the correct version .Client Version : {VERSION},Server Version : {self.version}")
         
         #self.start_diagnostics_monitor()
         
@@ -275,9 +279,9 @@ class Robot:
 #        else:
 #            self.tprint(f'input must be on or off - given {value}')
             
-#    def GetRobotStatus(self):
-#        sts = self.robot_status()
-#        return sts
+    def get_robot_status(self):
+        sts = self.robot_status()
+        return sts
         
     def stop(self, value):
         # stop the robot
@@ -335,7 +339,6 @@ class Robot:
         
     def get_point_pose(self, g_Type = "Position", g_PosName = "Home"):
         "g_Type - Position or Joint"
-
         
         # list of joint angles
         target       = self.get_point(str(g_PosName))
@@ -360,21 +363,26 @@ class Robot:
         print('RPY' , rpy)
         return current
     
-    def degree_to_radians(self, deg):        
-
-        radians = np.radians(deg)
+    def get_pose_euler(self):
+        "get pose in mm and euler rotation angles"
+        p       = self.get_current_cartesian_pose()        
+        quart   = p[3:7]
+        rpy     = self.quaternion_to_rpy(quart[0],quart[1],quart[2],quart[3])
+        rpy_deg = [a*180/np.pi for a in rpy]
+        p_mm    = [pp*1000 for pp in p[:3]]
+        pose    = [p_mm[0], p_mm[1], p_mm[2], rpy_deg[0], rpy_deg[1], rpy_deg[2]]
+        self.tprint('Euler pose: ' , pose)
+        return pose    
     
-        print(f"{deg} degrees = {self.radians} radians")
-        
-        return radians
-    
-    def radians_to_degree(self, rad):
-        
-        degrees = np.degrees(rad)
-
-        print(f"{rad} radians = {self.degrees} degrees")
-        
-        return degrees
+    def set_pose_euler(self, pose):
+        "set pose in mm and euler rotation angles"
+        self.tprint('Euler pose: ' , pose)     
+        rpy     = [a/180*np.pi for a in pose[3:6]]
+        quat     = self.rpy_to_quaternion(rpy[0],rpy[1],rpy[2])
+        p_m      = [pp/1000 for pp in pose[:3]]
+        p        = [p_m[0], p_m[1], p_m[2], quat[0], quat[1], quat[2], quat[3]]
+        self.move_linear_from_current_position([p], 5, 1)
+        return True  
     
 
     def test_commands(self):
@@ -421,7 +429,8 @@ class TestRobotAPI: #unittest.TestCase
         XPos            = currentPosition[0]
         print('X: ', XPos)
         #currentPosition[0] = currentPosition[0] + 10
-        #print('Current Position: ', currentPosition)        
+        #print('Current Position: ', currentPosition)     
+        #self.r.stop()
  
     def TestMotion(self):
         self.r.robot_info() 
@@ -449,14 +458,25 @@ class TestRobotAPI: #unittest.TestCase
     
         self.r.move_linear_from_current_position([p], 5, 1)          
                      
-
+    def TestEulerMotion(self):
+        self.r.robot_info() 
+        #self.r.list_methods()
+        self.r.power_on()
+        self.r.switch_to_automatic_mode()
+        
+        pose = self.r.get_pose_euler()
+        pose[0] = pose[0] - 0.1
+        isOK = self.r.set_pose_euler(pose)
+        
+        
 
 #%%
 if __name__ == '__main__':
     
     #from Robot import TestRobotAPI
     tapi = TestRobotAPI()
-    tapi.TestName()    
+    #tapi.TestName()    # ok
     #tapi.TestMotion() # ok
     #tapi.TestCommands() # ok
+    tapi.TestEulerMotion()
     
