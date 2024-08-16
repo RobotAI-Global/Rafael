@@ -3,14 +3,16 @@ import datetime
 
 class Packet:
 
-    def __init__(self):                
+    def __init__(self):    
+
+        self.debugOn        = True            
     
-        self.wsync    = 2863289685
-        self.msgSize  = 0
-        self.cmdCode  = 51
-        self.msgCount = 0
+        self.wsync          = 2863289685
+        self.msgSize        = 0
+        self.cmdCode        = 51
+        self.msgCount       = 0
         
-        self.data     = [] 
+        self.data           = [] 
         
         # opcode 51
         self.manual_auto    = 0
@@ -67,8 +69,7 @@ class Packet:
             data = struct.unpack('<LLLLLLLLLL', binaryData[24:65])
             self.error_codes = data 
             
-            print('Data extract OpCode 52: ', self.bit_status, self.seconds,
-                  self.error_codes)
+            print('Data extract OpCode 52: ', self.bit_status, self.seconds,  self.error_codes)
         
         elif self.cmdCode == 53:
             data = struct.unpack('<L', binaryData[16:20])
@@ -81,7 +82,7 @@ class Packet:
                     
         else:
             
-            print('bad cmdCode to extract data')
+            self.tprint('bad cmdCode to extract data')
             return False
         
         return True
@@ -90,7 +91,7 @@ class Packet:
         # pack data
         dataBinary = b''
         if self.cmdCode == 50:
-            print('OpCode 50 Not supported')
+            self.tprint('OpCode 50 Not supported')
             return False
             
         elif self.cmdCode == 51:             
@@ -130,7 +131,7 @@ class Packet:
             #print('Create binary date: ', dataBinary)                            
                 
         else:
-            print('bad cmdCode to create data')
+            self.tprint('bad cmdCode to create data')
             return False
         
         return dataBinary 
@@ -205,11 +206,16 @@ class Packet:
         
         binaryData = binaryHeader + binaryData
         
-        return binaryData         
+        return binaryData  
+
+    def tprint(self,txt):
+        if not self.debugOn:
+            return
+        print('I: PKT: %s' %str(txt))
     
     # ****** Subroutines to test the packet ******
     def test_header(self):
-        print('testing header')
+        self.tprint('testing header')
         self.wsync, self.msgSize, self.cmdCode, self.msgCount = 2863289685, 32, 52, 1
         
         binHeader = self.create_header()
@@ -218,7 +224,7 @@ class Packet:
         print(self.wsync, self.msgSize, self.cmdCode, self.msgCount)
         
     def test_data(self):
-         print('testing data')
+         self.tprint('testing data')
          self.wsync, self.msgSize, self.cmdCode, self.msgCount = 2863289685, 32, 52, 1
          self.manual_auto, self.UUT_type, self.stand_number, self.command = 0, 1, 0, 1
          
@@ -228,7 +234,7 @@ class Packet:
          print(self.manual_auto, self.UUT_type, self.stand_number, self.command)       
         
     def test_packet(self):
-         print('testing packet')
+         self.tprint('testing packet')
          
          binHeaderData = b'UU\xaa\xaa \x00\x00\x003\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00'         
          print('Recived data from client: ', binHeaderData)
