@@ -55,7 +55,7 @@ class ConfigManager:
         
     def __init__(self, workingDirectory = ''):
                 
-        self.path           = '' 
+        self.path           = os.getcwd() 
         #self.serverMode     = True     # holds the state if the server mode is activated 
         self.debugOn        = True    # global debug
         
@@ -96,7 +96,7 @@ class ConfigManager:
         # true object directory
         if not os.path.isdir(workingDirectory):
             workingDirectory  = os.getcwd()
-            self.Print("Bad working directory %s - initializing " % workingDirectory)
+            self.Print("Current working directory %s - initializing " % workingDirectory)
         
         self.path = workingDirectory
         ret = True
@@ -300,15 +300,15 @@ class ConfigManager:
         
         if level == 'I':
             ptxt = 'I: CFG: %s' % txt
-            log.info(ptxt)  
+            #log.info(ptxt)  
         if level == 'W':
             ptxt = 'W: CFG: %s' % txt
-            log.warning(ptxt)  
+            #log.warning(ptxt)  
         if level == 'E':
             ptxt = 'E: CFG: %s' % txt
-            log.error(ptxt)  
+            #log.error(ptxt)  
            
-        #print(ptxt)
+        print(ptxt)
     
     
     def Finish(self):

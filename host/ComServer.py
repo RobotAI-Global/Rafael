@@ -108,6 +108,22 @@ class ComServer:
         # send data to the client                
         self.conn.sendall(self.dataBinary)
         
+    def RecvMessage(self):
+        "called to get packet"
+        msgFromHost = self.queueFromHost.get()
+        return msgFromHost
+    
+    def SendMessage(self, msgToHost):
+        "called to send packet"
+        ret = False
+        if self.queueToHost.empty():        
+            self.queueToHost.put(msgToHost)
+            ret  = True
+        else:
+            self.Print('Busy : Packet Drop')
+            
+        return ret    
+        
     def ServerThread(self):  
         "main thread"
         self.ServerStart()

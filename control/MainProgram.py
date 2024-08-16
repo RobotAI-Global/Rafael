@@ -3,7 +3,7 @@
 
 @author: avita
 
-RobotAI : Robot Manager - Main Server
+RobotAI : Project Manager - Main Task
 Usage :
 
 
@@ -13,7 +13,7 @@ Install:
 -----------------------------
  Ver    Date     Who    Descr
 -----------------------------
-0101    11.06.24 UD     Created
+0101    11.08.24 UD     Created
 -----------------------------
 
 """
@@ -50,9 +50,9 @@ log.basicConfig(level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)6
 
 #try:
 from control.ConfigManager import ConfigManager
-from robot.RobotAPI import RobotAPI as RobotManager
+from robot.Robot import Robot as RobotManager
 from host.ComServer  import ComServer as HostManager
-from control.StateMachine import StateMachine
+#from control.StateMachine import StateMachine
 from disc.ControllerHHC import IOController
 
 #except Exception as e:
@@ -76,8 +76,26 @@ from disc.ControllerHHC import IOController
 HOME_POSE                     = [-500.0, 38.0, 430.0, 94.3088530785335, 0.6875493541569879, -82.21944360127314]
 #        
 
-
-
+#%% 
+# StateMachine/State.py
+# A State has an operation, and can be moved into the next State given an Input:
+from enum import Enum
+class STATE(Enum):
+    INIT                = 1    
+    
+    WAIT_FOR_COMMAND    = 20
+    EXECUTE             = 10
+    SPECIAL             = 90     # deal with special message
+    FINISH              = 100
+    ERROR               = 401
+    
+# A State has an operation, and can be moved into the next State given an Input:
+class ERROR(Enum):
+    NONE                = 0    
+    NO_CONNECTION       = 101
+    NO_HOME_POSITION    = 102     # deal with special message
+    FINISH      = 100
+    ERROR       = 401
 
 
 #%% 
@@ -88,9 +106,11 @@ class MainProgram:
         self.cfg        = ConfigManager()
         self.debugOn    = False
         self.ts         = None # task handle
+        self.state      = STATE.INIT
+        self.error      = ERROR.NONE
         
         # main state machine
-        self.rsm        = StateMachine(parent = self)
+        #self.rsm        = StateMachine(parent = self)
         
         # robot comm
         self.rbm        = RobotManager(parent = self)
@@ -105,197 +125,324 @@ class MainProgram:
     ## -------------------------------
     #  -- Init All---
     ## -------------------------------
-    def initModules(self):
+    def Init(self):
         "intialize all the modules - read some inint data from config file"
-        self.cfg.init()
+        self.cfg.Init()
         self.rbm.Init()
         self.ioc.Init()
         self.host.Init()
-        self.rsm.init()
+        #self.rsm.Init()
+        self.state = STATE.INIT
+        self.error = ERROR.NONE
+        self.Print('Init')
         
-    def startModules(self):
-        "start running"
+    def Start(self):
+        "start running"        
+        self.host.Start()
+        self.rbm.Start()
+        self.ioc.Start()
+        self.Print('Start')
         
-        self.host.RunThread()
-        self.rbm.RunThread()
-        self.ioc.RunThread()
+    ## -------------------------------
+    #  -- ACTIONS ---
+    ## -------------------------------   
+    def ActionHome(self):
+        "set system in home position"
+        ret         = False
+        return ret
+    
+    def ActionStop(self):
+        "check if"
+        ret         = False
+        return ret    
+    def ActionLoadUUTToTable(self):
+        "check if"
+        ret         = False
+        return ret
+    
+    def ActionUnloadUUTFromTable(self):
+        "check if"
+        ret         = False
+        return ret
+    
+    def ActionLoadUUTToTestStand(self):
+        "check if"
+        ret         = False
+        return ret
+    
+    def ActionUnloadUUTFromTestStand(self):
+        "check if"
+        ret         = False
+        return ret
+    
+    ## -------------------------------
+    #  -- Conditions ---
+    ## -------------------------------   
+    def CheckConnection(self):
+        "check if all modules are connected"
+        ret         = True
+        ret         = self.rbm.IsConnected() and ret
+        ret         = self.host.IsConnected() and ret
+        ret         = self.ioc.IsConnected() and ret
+        self.Print('Connectivity : %b' %ret)
+        return ret   
+    
+    def CheckSystemState(self):
+        "check if all modules are in home position"
+        ret         = True
+        ret         = self.rbm.IsHome() and ret
+        ret         = self.host.IsHome() and ret
+        ret         = self.ioc.IsHome() and ret
+        self.Print('Home position : %b' %ret)
+        return ret       
+    
+    def WaitFor(self):
+        "check if"
+        ret         = False
+        return ret
+    
+    def WaitForStop(self):
+        "check if"
+        ret         = False
+        return ret
+    
+    def WaitForLoadUUTToTable(self):
+        "check if"
+        ret         = False
+        return ret
+    
+    def WaitForUnloadUUTFromTable(self):
+        "check if"
+        ret         = False
+        return ret
+    
+    def WaitForLoadUUTToTestStand(self):
+        "check if"
+        ret         = False
+        return ret
+    
+    def WaitForUnloadUUTFromTestStand(self):
+        "check if"
+        ret         = False
+        return ret    
+        
+    ## -------------------------------
+    #  -- STATES ---
+    ## -------------------------------                
+    def StateSpecialMessage(self, msg_in, curr_state):
+        "special messages"
+        msg_out     = msg_in
+        next_state  = curr_state
+        return msg_out, next_state
+    
+    def StateInit(self, msg_in, curr_state):
+        "do nonthing"
+        msg_out     = msg_in
+        next_state  = curr_state
+        
+        # do we have conection
+        ret         = self.CheckConnection()
+        if not ret:
+            self.error = ERROR.NO_CONNECTION
+            next_state = STATE.ERROR
+            
+        # do we have initial position
+        ret         = self.CheckSystemState()
+        if not ret:
+            self.error = ERROR.NO_HOME_POSITION
+            next_state = STATE.ERROR            
+        
+        return msg_out, next_state 
+    
+    def StateWaitForCommand(self, msg_in, curr_state):
+        "do onthing"
+        msg_out     = msg_in
+        next_state  = curr_state
+        return msg_out, next_state     
+    
+    def StateFinish(self, msg_in, curr_state):
+        "do onthing"
+        msg_out     = msg_in
+        next_state  = curr_state
+        return msg_out, next_state 
+
+    def StateError(self, msg_in, curr_state):
+        "do onthing"
+        msg_out     = msg_in
+        next_state  = curr_state
+        return msg_out, next_state  
+
+    def StateExecute(self, msg_in, curr_state):
+        "do everything"
+        msg_out     = msg_in
+        next_state  = curr_state
+
+
+#        if not isinstance(msgPacket, Packet):
+#            print('Wrong object')         
+    
+        if msg_in.command == 0:
+            self.Print('0 - DEFULT command')           
+            self.ActionHome()
+            
+        if msg_in.command == 1:
+            self.Print('1 - STOP command')
+            self.ActionStop()
+            
+        if msg_in.command == 2:
+            self.Print('2 - Load UUT to index table command')
+            self.ActionLoadUUTToTable()
+            # self.r.move_joint(target_joint=[0,90,0,90,0,0],speed=100,accelearation=70)
+            # self.r.move_joint(target_joint=[0,0,90,0,0,0],speed=100,accelearation=70)
+            
+        if msg_in.command == 3:
+            self.Print('3 - Unload UUT from index table command')
+            self.ActionUnloadUUTFromTable()
+            
+        if msg_in.command == 4:
+            self.Print('4 - Load UUT to test stand command')
+            self.ActionLoadUUTToTestStand()
+            
+        if msg_in.command == 5:
+            self.Print('5 - Unload UUT from test stand command')
+            self.ActionUnloadUUTFromTestStand()
+            
+        if msg_in.command == 6:
+            self.Print('6 - Get staus command')
+            msg_out.msgSize = 60
+            msg_out.cmdCode = 53
+            
+            msg_out.last_cmd_status = self.msgPacketInternal.last_cmd_status
+            msg_out.general_status[0] = 1
+            msg_out.general_status[1] = 2
+            msg_out.general_status[2] = 3
+            msg_out.general_status[3] = 4
+            msg_out.general_status[4] = 5
+            msg_out.general_status[5] = 6
+            msg_out.general_status[6] = 7
+            msg_out.general_status[7] = 8
+            msg_out.general_status[8] = 9
+            msg_out.general_status[9] = 10
+            
+            # Preparing data to be send to client 
+            # Sending packet only when commands are 6 or 7 
+            # Other commands just execute robot movments and logic
+          
+            
+        if msg_in.command == 7:
+            self.Print('7 - Get bit results command')
+            msg_out.msgSize         = 64
+            msg_out.cmdCode         = 52                
+            
+            # msgPacket.bit_status     = self.msgPacketInternal.bit_status
+            msg_out.bit_status      = 1
+            msg_out.seconds         = 45
+            msg_out.error_codes[0] = 1
+            msg_out.error_codes[1] = 2
+            msg_out.error_codes[2] = 3
+            msg_out.error_codes[3] = 4
+            msg_out.error_codes[4] = self.msgPacketInternal.error_codes[4]
+            msg_out.error_codes[5] = 6
+            msg_out.error_codes[6] = 7
+            msg_out.error_codes[7] = 8
+            msg_out.error_codes[8] = 9
+            msg_out.error_codes[9] = 10 
+            
+        if msg_in.command == 8:
+            self.Print('8 - Connections counter zeroise command')             
+    
+        return msg_out, next_state  
+    
+        
+    def Transition(self, msg_in):
+        "transition to a different state"
+        curr_state = self.state
+        next_state = self.state
+
+        
+        # deal with special messages
+        msg_out, curr_state = self.StateSpecialMessage(msg_in, curr_state)
+        
+        # deal with messages per state
+        if curr_state == STATE.INIT:
+            msg_out, next_state = self.StateInit(msg_in, curr_state)
+        elif curr_state == STATE.WAIT_FOR_COMMAND:
+            msg_out, next_state = self.StateWaitForCommand(msg_in, curr_state)            
+            
+        elif curr_state == STATE.EXECUTE:
+            msg_out, next_state = self.StateExecute(msg_in, curr_state) 
+        elif curr_state == STATE.SPECIAL:
+            msg_out, next_state = self.StateExecute(msg_in, curr_state)             
+        elif curr_state == STATE.FINISH:
+            msg_out, next_state = self.StateFinish(msg_in, curr_state)
+        elif curr_state == STATE.ERROR:
+            msg_out, next_state = self.StateError(msg_in, curr_state)            
+        else:
+            msg_out, next_state = msg_in, STATE.ERROR
+            self.Print('Not supprted state')
+            
+        
+        self.Print('Transition to %s' %str(next_state))   
+        self.state = next_state
+        return msg_out        
         
         
     ## -------------------------------
     #  -- TASK ---
     ## -------------------------------
-    def mainTask(self):
+    def MainTask(self):
         "run all modules"
         isStop = False
         while not isStop:
             
             # receive message from the host
-            msgRx = self.host.recv()
+            msgRx = self.host.RecvMessage()
             
             # send message to the state machine
-            msgTx  = self.rsm.transition(msgRx)
+            msgTx  = self.Transition(msgRx)
             
             # send response to the host
-            isOk   = self.host.send(msgTx)
+            isOk   = self.host.SendMessage(msgTx)
 
 
-    def MainTask(self):    
-        global stopTask         
-        
-        while not stopTask:
-            
-            # Check if recived queue is empty
-            if not self.s.queueToRobot.empty():
-                
-                # received packet from comm server            
-                pcktToRobot    = self.s.queueToRobot.get()
-                
-                # sending packet to robot thread
-                self.r.queueToRobot.put(pcktToRobot)  
-                print('Sending Data from Server Thread to Robot Thread')
-            
-            # Check if sending queue is empty
-            if not self.r.queueFromRobot.empty():
-    
-                # extract results
-                pcktFromRobot = self.r.queueFromRobot.get()
-                
-                # send to server
-                self.s.queueFromRobot.put(pcktFromRobot)
-                print('Sending Data from Robot Thread to Server Thread')       
-    
-        print('Exit Main Task')
-        
-    ## -------------------------------
-    #  -- Decode Command ---
-    ## -------------------------------    
-    def ExecutePacket(self):
-        
-        if self.queueToRobot.empty():
-            return
-        
-        msgPacket  = self.queueToRobot.get()
-        
-        if not isinstance(msgPacket, Packet):
-            print('Wrong object')         
-    
-        if msgPacket.command == 0:
-            print('0 - DEFULT command')           
-            self.Home()
-            
-        if msgPacket.command == 1:
-            print('1 - STOP command')
-            self.Stop()
-            
-        if msgPacket.command == 2:
-            print('2 - Load UUT to index table command')
-            self.LoadUUTToTable()
-            # self.r.move_joint(target_joint=[0,90,0,90,0,0],speed=100,accelearation=70)
-            # self.r.move_joint(target_joint=[0,0,90,0,0,0],speed=100,accelearation=70)
-            
-        if msgPacket.command == 3:
-            print('3 - Unload UUT from index table command')
-            self.UnloadUUTFromTable()
-            
-        if msgPacket.command == 4:
-            print('4 - Load UUT to test stand command')
-            self.LoadUUTToTestStand()
-            
-        if msgPacket.command == 5:
-            print('5 - Unload UUT from test stand command')
-            self.UnloadUUTFromTestStand()
-            
-        if msgPacket.command == 6:
-            print('6 - Get staus command')
-            msgPacket.msgSize = 60
-            msgPacket.cmdCode = 53
-            
-            msgPacket.last_cmd_status = self.msgPacketInternal.last_cmd_status
-            msgPacket.general_status[0] = 1
-            msgPacket.general_status[1] = 2
-            msgPacket.general_status[2] = 3
-            msgPacket.general_status[3] = 4
-            msgPacket.general_status[4] = 5
-            msgPacket.general_status[5] = 6
-            msgPacket.general_status[6] = 7
-            msgPacket.general_status[7] = 8
-            msgPacket.general_status[8] = 9
-            msgPacket.general_status[9] = 10
-            
-            # Preparing data to be send to client 
-            # Sending packet only when commands are 6 or 7 
-            # Other commands just execute robot movments and logic
-            self.queueFromRobot.put(msgPacket)            
-            
-        if msgPacket.command == 7:
-            print('7 - Get bit results command')
-            msgPacket.msgSize = 64
-            msgPacket.cmdCode = 52                
-            
-            # msgPacket.bit_status     = self.msgPacketInternal.bit_status
-            msgPacket.bit_status     = 1
-            msgPacket.seconds = 45
-            msgPacket.error_codes[0] = 1
-            msgPacket.error_codes[1] = 2
-            msgPacket.error_codes[2] = 3
-            msgPacket.error_codes[3] = 4
-            msgPacket.error_codes[4] = self.msgPacketInternal.error_codes[4]
-            msgPacket.error_codes[5] = 6
-            msgPacket.error_codes[6] = 7
-            msgPacket.error_codes[7] = 8
-            msgPacket.error_codes[8] = 9
-            msgPacket.error_codes[9] = 10 
-            
-            # Preparing data to be send to client
-            # Sending packet only when commands are 6 or 7 
-            # Other commands just execute robot movments and logic
-            self.queueFromRobot.put(msgPacket)
-            
-        if msgPacket.command == 8:
-            print('8 - Connections counter zeroise command')             
-    
-
- 
-    def StartAuto(self):
-        # start auto connections
-        #self.robotConnect()
-        #self.robotStatus()
-        #self.hostConnect()
-        #self.hostStatus()
-        pass
-
-       
-
-    def tprint(self, txt='',level='I'):
+    def Print(self, txt='',level='I'):
 
         if level == 'I':
             ptxt = 'I: PRG: %s' % txt
-            log.info(ptxt)
+            #log.info(ptxt)
         if level == 'W':
             ptxt = 'W: PRG: %s' % txt
-            log.warning(ptxt)
+            #log.warning(ptxt)
         if level == 'E':
             ptxt = 'E: PRG: %s' % txt
-            log.error(ptxt)
-
+            #log.error(ptxt)
+        print(ptxt)
 
 
             
 #%% Testing - unittest
 class TestMainProgram:
     def __init__(self):
-        self.ms = MainProgram()
+        self.mp = MainProgram()
         
     def test_current_state(self):
-        self.ms.tprint('1')
-        assert self.ms.currentState == STATE.INIT
+        self.mp.Print('1')
+        assert self.mp.state == STATE.INIT
         
-    def test_all(self):
-        self.test_current_state()
+    def test_init(self):
+        self.mp.Init()
+        assert self.mp.state == STATE.INIT        
+        
+    def test_start(self):
+        self.mp.Init()
+        self.mp.Start()
+        assert self.mp.state == STATE.INIT  
         
 
 # --------------------------
 if __name__ == '__main__':
-    from MainProgram import MainProgram
-    m = MainProgram()
-    m.mainTask()
+    #from MainProgram import MainProgram
+    tst = TestMainProgram()
+    #tst.test_current_state() # ok
+    #tst.test_init() # ok 
+    tst.test_start() # ok 

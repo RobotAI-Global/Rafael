@@ -1,3 +1,24 @@
+"""
+
+RobotAI : IO Interface
+
+Login:
+     
+
+Usage :
+
+
+Usage:
+    Zion -> env :  D:/RobotAI/Design/env/pose6d
+
+-----------------------------
+ Ver    Date     Who    Descr
+-----------------------------
+0101    11.08.24 UD     Created
+-----------------------------
+
+"""
+
 import socket
 #from queue import Queue
 from threading import Thread
@@ -9,19 +30,22 @@ class IOController:
         #super().__init__()
         self.parent = parent
         # Server information
-        self.ServerIp = '192.168.0.105'  # IP address of the controller
-        self.ServerPort = 5000  # port number of the controller  
-        self.client_socket = None
+        self.ServerIp       = '192.168.0.105'  # IP address of the controller
+        self.ServerPort     = 5000  # port number of the controller  
+        self.client_socket  = None
         
     def Init(self):
         self.Print('Init')
         
+    def Start(self):
+        self.Print('Start')        
+        
     def Connect(self):
         # Create a TCP/IP socket
-        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.client_socket  = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         
         # connect to the server, if result = 0 connection is OK
-        result = self.client_socket.connect((self.ServerIp, self.ServerPort))
+        result              = self.client_socket.connect((self.ServerIp, self.ServerPort))
         self.Print('Connected to the controller.')
         
         return result
@@ -140,40 +164,37 @@ class IOController:
         self.ts.start()
         self.ts.join()    
         return True 
-
+    
+    ## ------------------------------------  
+    # -- Table Control ---
+    ## ------------------------------------        
+    def SetTableHome(self):
+        # go to home position
+        self.tprint('Starting Homing ...')
+        
+    def GetTableIndex(self):
+        # go to home position
+        self.tprint('Current position ...')
+        return True
 
     ## ------------------------------------  
     # -- IO Control ---
     ## ------------------------------------ 
-    def ioConnect(self):
-        # start
-        self.tprint('Starting IO connection ...')
-        
-        # maybe already running
-        if self.ioc is None:
-            # runs Robot server and Multi Object Detection
-            self.ioc    = IOController(self) #host = self.ip_vision, port = self.port_vision, debug = self.debugOn, config=self.cfg) #RobotServerThread(host = self.ip, port = self.port,  debug=self.debugOn, config = self.cfg)
-            self.ioc.ConnectToController()
-        elif self.ioc.IsConnected():   
-            self.tprint('IO Connection is alive')
-        else:
-            # need to connect
-            self.ioc.ConnectToController()
-            self.tprint('IO Connection is initiated')
+
             
-    def ioStatus(self):
-        self.ioc.GetInputStatus()
+    def Status(self):
+        self.GetInputStatus()
         self.tprint(f'Checking status')
         
-    def ioReset(self):
+    def Reset(self):
         # get specific bit info
         addr = 0
-        self.ioc.ResetOutput(addr)
+        self.ResetOutput(addr)
         self.tprint(f'IO reset {addr}') 
         
-    def ioGetInfo(self):
+    def GetInfo(self):
         # get specific bit info
-        val = self.ioc.GetInputStatus(0)
+        val = self.GetInputStatus(0)
         self.tprint(f'IO received {val}')
         
     def ioSetInfo(self):
@@ -183,19 +204,26 @@ class IOController:
         self.ioc.SetOutput(addr,val)
         self.tprint(f'IO sending value {val} to {addr}')
         
-    def ioDisconnect(self):
+    def Disconnect(self):
         # disonnecteing
-        self.ioc.CloseConnectionWithController()   
+        self.CloseConnectionWithController()   
+             
 
-                
+     
         
-    def Print(self, ptxt='',level='I'):
+    def Print(self, txt='',level='I'):
+        
         if level == 'I':
-            log.info(ptxt)
+            ptxt = 'I: IOC: %s' % txt
+            #log.info(ptxt)
         if level == 'W':
-            log.warning(ptxt)
+            ptxt = 'W: IOC: %s' % txt
+            #log.warning(ptxt)
         if level == 'E':
-            log.error(ptxt)        
+            ptxt = 'E: IOC: %s' % txt
+            
+        print(ptxt)
+            
         
     def Test(self):
         self.ConnectToController()

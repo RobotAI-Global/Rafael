@@ -11,8 +11,7 @@ Test Comm Client and Server for Host
 from ComClient import ComClient
 from ComServer import ComServer
 import time
-from threading import Thread
-from queue import Queue
+
 
 COMM_IP     = '127.0.0.1'
 COMM_PORT   = 8480
@@ -102,6 +101,4 @@ if __name__ == "__main__":
     #tsc.TestOneMessage()
     tsc.TestAllMessages()
     
-
-    #tsc.TestServerThreaded() # ok
 

@@ -337,6 +337,11 @@ class Robot:
         # r.gripper("close")
         self.r.gripper(str(Action))
         
+    def get_gripper(self):
+        "gripper status"
+        ret = self.r.gripper()
+        return ret
+        
     def get_point_pose(self, g_Type = "Position", g_PosName = "Home"):
         "g_Type - Position or Joint"
         
@@ -381,31 +386,31 @@ class Robot:
         quat     = self.rpy_to_quaternion(rpy[0],rpy[1],rpy[2])
         p_m      = [pp/1000 for pp in pose[:3]]
         p        = [p_m[0], p_m[1], p_m[2], quat[0], quat[1], quat[2], quat[3]]
-        self.move_linear_from_current_position([p], 5, 1)
+        res      = self.move_linear_from_current_position([p], 5, 1)
         return True  
     
+    def Init(self):
+        "compatability"
+        self.robot_info()
 
-    def test_commands(self):
-            
-        self.robotPower(True)
-        self.robotMode('automatic')
+    def Start(self):
+        "compatability"
+        self.power_on()
+        self.switch_to_automatic_mode()  
+        self.Print('Start')
+        
+    def Print(self, txt='',level='I'):
 
-        # coord = []
-        # coord = [0.2, -0.2, 0.2, 1.57, 0, 3]
-        # coord = [200.0, -200.0, 200.0, 90.0, 0.0, 171.9745222929936]
-
-        self.moveLinearToCoord_fromCurrentPose(-300, -300, 370, 180, 0, 90)
-        self.moveLinearToPoint('CalibrationStart') 
-        
-    def test_move_linear(self): #, Position, l_Speed, l_Acc):
-        #r.move_linear(p)
-        
-        # target_linear = [25,30,35,0,0,0]
-        # r.move_linear(target_linear,speed=0.8,accelearation=1)
-        
-         p = self.get_point("Home")
-         target_Position = [p[:6]]
-         self.move_linear(target_Position,speed=0.5,accelearation=0.5)         
+        if level == 'I':
+            ptxt = 'I: ROB: %s' % txt
+            #log.info(ptxt)
+        if level == 'W':
+            ptxt = 'W: ROB: %s' % txt
+            #log.warning(ptxt)
+        if level == 'E':
+            ptxt = 'E: ROB: %s' % txt
+            #log.error(ptxt)
+        print(ptxt)        
 
 #%% Tests           
 class TestRobotAPI: #unittest.TestCase
@@ -413,10 +418,20 @@ class TestRobotAPI: #unittest.TestCase
     def __init__(self):
         self.r = Robot()
         
-    def TestName(self):
+    def TestInfo(self):
         
         self.r.robot_info() 
         self.r.list_methods()
+        
+        # need one argument
+        #prop = self.r.get_doc()
+        #print(prop)        
+        
+        #prop = self.r.get_current_tool_properties()
+        #print(prop)
+        
+        prop = self.r.get_tools()
+        print(prop)        
         
         currentPosition = self.r.get_point_pose('Position', 'Home')
         print('Current Position: ', currentPosition)
@@ -465,18 +480,32 @@ class TestRobotAPI: #unittest.TestCase
         self.r.switch_to_automatic_mode()
         
         pose = self.r.get_pose_euler()
-        pose[0] = pose[0] - 0.1
+        pose[0] = pose[0] + 10 # mm
+        pose[5] = pose[5] + 10 # deg
         isOK = self.r.set_pose_euler(pose)
         
+    def TestSwitchTool(self):
+        self.r.robot_info() 
+        #self.r.list_methods()
+        self.r.power_on()
+        self.r.switch_to_automatic_mode()
         
+        pose = self.r.get_pose_euler()
+ 
+        prop = self.r.get_tools()
+        param= prop[1]
+        self.r.set_tool(param)
+        
+        pose = self.r.get_pose_euler()
+       
 
 #%%
 if __name__ == '__main__':
     
     #from Robot import TestRobotAPI
     tapi = TestRobotAPI()
-    #tapi.TestName()    # ok
+    tapi.TestInfo()    # ok
     #tapi.TestMotion() # ok
     #tapi.TestCommands() # ok
-    tapi.TestEulerMotion()
-    
+    #tapi.TestEulerMotion() # ok
+    tapi.TestSwitchTool() # 
