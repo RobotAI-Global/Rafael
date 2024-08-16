@@ -256,7 +256,7 @@ class MainProgram:
     
 
  
-    def startAuto(self):
+    def StartAuto(self):
         # start auto connections
         #self.robotConnect()
         #self.robotStatus()
@@ -269,13 +269,13 @@ class MainProgram:
     def tprint(self, txt='',level='I'):
 
         if level == 'I':
-            ptxt = 'I: SRV: %s' % txt
+            ptxt = 'I: PRG: %s' % txt
             log.info(ptxt)
         if level == 'W':
-            ptxt = 'W: SRV: %s' % txt
+            ptxt = 'W: PRG: %s' % txt
             log.warning(ptxt)
         if level == 'E':
-            ptxt = 'E: SRV: %s' % txt
+            ptxt = 'E: PRG: %s' % txt
             log.error(ptxt)
 
 

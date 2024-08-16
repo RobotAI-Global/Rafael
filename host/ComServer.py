@@ -21,11 +21,11 @@ class ComServer:
         # get the hostname (IP Number)
         # as both code is running on same pc
         #self.host = socket.gethostname()        
-        self.host = '127.0.0.1'
+        self.host 			= '127.0.0.1'
         
         # initiate port no above 1024
         #self.port = 22  # initiate port no above 1024
-        self.port = 5000  # initiate port no above 1024
+        self.port 			= 5000  # initiate port no above 1024
         self.stopTask       = False 
         self.ts             = None
         
