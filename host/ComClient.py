@@ -1,4 +1,4 @@
-from Packet import Packet
+from host.Packet import Packet
 import socket
 from queue import Queue
 from threading import Thread
@@ -116,6 +116,26 @@ class ComClient:
         
     def Print(self, txt):
         print('I: CLI: %s' %str(txt))
+        
+    def TestHostSimulator(self, msgList = []):
+        "simulates host commands"
+        self.Init()        
+        self.Start()
+
+        msgList = ['2', '3', '1'] if len(msgList) < 1 else msgList
+        
+        for command in msgList:
+            self.Print('Sending %s....' %str(command))
+            self.queueFromHost.put(command)
+            time.sleep(3)
+            self.Print('Receiving....')
+            try:
+                data = self.queueToHost.put(10)
+            except: # timeout
+                data = 'no data from Main'
+                    
+            print(data)
+            time.sleep(3)
         
 if __name__ == '__main__':
     c = ComClient()

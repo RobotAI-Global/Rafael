@@ -33,12 +33,12 @@ class IOController:
         self.ServerIp       = '192.168.0.105'  # IP address of the controller
         self.ServerPort     = 5000  # port number of the controller  
         self.client_socket  = None
+        self.ts             = None   # thread
+        self.stopTask       = False
         
     def Init(self):
         self.Print('Init')
         
-    def Start(self):
-        self.Print('Start')        
         
     def Connect(self):
         # Create a TCP/IP socket
@@ -55,8 +55,12 @@ class IOController:
         ret = False
         if self.client_socket is None:
             return ret
-        
         return True
+    
+    def IsHome(self):
+        # chekc if the IOs are in correct position
+        ret = True
+        return ret    
         
     def SendDataToController(self, cCommand):
         # Send data to the server       
@@ -95,7 +99,7 @@ class IOController:
         self.SendDataToController('input')
         # get input status
         self.rValue = self.ReciveDataFromController('input', iNumber)
-        
+        self.Print('GetInputStatus : %s' %str(iNumber))
         return self.rValue
     
     def SetOutput(self, iNumber, sDelay):
@@ -119,6 +123,7 @@ class IOController:
         # get relay status
         self.rValue = self.ReciveDataFromController('output', iNumber)
         
+        self.Print('SetOutput : %s' %str(iNumber))
         return self.rValue
     
     def ResetOutput(self, iNumber):
@@ -136,12 +141,13 @@ class IOController:
         # get relay status
         self.rValue = self.ReciveDataFromController('output', iNumber)
         
+        self.Print('ResetOutput : %s' %str(iNumber))
         return self.rValue
         
     def CloseConnectionWithController(self):
         # close the connection
         self.client_socket.close()
-        print('Connection with the controller closed.')
+        self.Print('Connection with the controller closed.')
         
     def ControllerThread(self):  
         "main thread"        
@@ -149,7 +155,7 @@ class IOController:
             try:
                 self.Connect()    
                 print('Server is running')
-                while True:
+                while not self.stopTask:
                     
                     self.ReciveData()
                     time.sleep(0.5)
@@ -162,20 +168,59 @@ class IOController:
         "running in the thread"
         self.ts = Thread(target = self.ControllerThread)
         self.ts.start()
-        self.ts.join()    
+        #self.ts.join()    
         return True 
+    
+    def Start(self):
+        self.Print('Start')    
+        self.RunThread()
+        
+    def Stop(self):
+        self.Print('Stop') 
+        self.stopTask = True
+        self.ts.join()          
     
     ## ------------------------------------  
     # -- Table Control ---
     ## ------------------------------------        
     def SetTableHome(self):
         # go to home position
-        self.tprint('Starting Homing ...')
+        self.Print('Starting Homing ...')
+        
+        home_sensor = False
+        while not home_sensor:
+             
+            # read home sensor
+            home_sensor = True
+        
+        return True
         
     def GetTableIndex(self):
         # go to home position
-        self.tprint('Current position ...')
+        self.Print('Current table position ...')
         return True
+    
+    def NextTableIndex(self):
+        # go to next position
+        self.Print('Next table position ...')
+        return True
+    
+    ## ------------------------------------  
+    # -- Tester Control ---
+    ## ------------------------------------        
+
+    def OpenDoor(self):
+        # go to next position
+        self.Print('Open Door ...')
+        return True 
+    
+    def BuhnaIsOpen(self):
+        # buhna is open
+        self.Print('Open Buhna ...')
+        return True     
+    
+    
+    
 
     ## ------------------------------------  
     # -- IO Control ---
@@ -190,27 +235,25 @@ class IOController:
         # get specific bit info
         addr = 0
         self.ResetOutput(addr)
-        self.tprint(f'IO reset {addr}') 
+        self.Print(f'IO reset {addr}') 
         
     def GetInfo(self):
         # get specific bit info
         val = self.GetInputStatus(0)
-        self.tprint(f'IO received {val}')
+        self.Print(f'IO received {val}')
         
-    def ioSetInfo(self):
+    def SetInfo(self):
         # get specific bit info  
         addr = 0
         val = 1
         self.ioc.SetOutput(addr,val)
-        self.tprint(f'IO sending value {val} to {addr}')
+        self.Print(f'IO sending value {val} to {addr}')
         
     def Disconnect(self):
         # disonnecteing
         self.CloseConnectionWithController()   
              
 
-     
-        
     def Print(self, txt='',level='I'):
         
         if level == 'I':

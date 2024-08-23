@@ -14,6 +14,7 @@ Usage:
 -----------------------------
  Ver    Date     Who    Descr
 -----------------------------
+0201    23.08.24 UD     New robot interface
 0101    11.06.24 UD     Created
 -----------------------------
 
@@ -23,8 +24,11 @@ Usage:
 import socket
 #import ast
 from types import MethodType
-import logging as log
+#import logging as log
 import sys
+import os
+import logging
+#from logging.handlers import TimedRotatingFileHandler
 import json
 from threading import Thread
 import time
@@ -38,33 +42,61 @@ else :
     import win32api
     OS = "windows"
 
-VERSION = "v4.12.14"
+VERSION = "v4.17.9"
     
-#import os
-#LOGLEVEL = os.getenv('NEURAPY_LOG_LEVEL','WARNING')
+LOGLEVEL = os.getenv('NEURAPY_LOG_LEVEL','WARNING')
 
 MONITOR_CYCLE_TIME = 2
 
+SOCKET_ADDRESS = os.getenv("SOCKET_ADDRESS", "192.168.2.13")
+SOCKET_PORT = 65432
 
 #log.basicConfig(level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)6s:%(lineno)3d} %(levelname)s - %(message)s',  datefmt="%M:%S")
-log.basicConfig(stream=sys.stdout, level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)s:%03(lineno)d} %(levelname)s - %(message)s',  datefmt="%M:%S")
+#log.basicConfig(stream=sys.stdout, level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)s:%03(lineno)d} %(levelname)s - %(message)s',  datefmt="%M:%S")
 
-#def generate_function(function_name,address):
-#    def wrapped_function(self,*args,**kwargs):
-#        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#        sock.connect(address)
-#        log.info('connected')
-#        data = {'function':function_name,'args':args,'kwargs':kwargs}
-#        sock.sendall(str(data).encode('utf-8'))
-#        log.info('sending ' + str(data))
-#        new_data = sock.recv(1)
-#        log.info('received 1') 
-#        new_data = sock.recv(1024)
-#        log.info('received ' + str(new_data))
-#        sock.close()
-#        return ast.literal_eval(new_data.decode('utf-8'))
-#    wrapped_function.__name__ = function_name+'_method'
-#    return wrapped_function
+
+class CustomFormatter(logging.Formatter):
+
+    grey = "\x1b[38;20m"
+    yellow = "\x1b[33;20m"
+    red = "\x1b[31;20m"
+    bold_red = "\x1b[31;1m"
+    reset = "\x1b[0m"
+    format = (
+        "[%(asctime)s][%(name)s][%(levelname)s] : %(message)s :(%(filename)s:%(lineno)d)"
+    )
+
+    FORMATS = {
+        logging.DEBUG: grey + format + reset,
+        logging.INFO: grey + format + reset,
+        logging.WARNING: yellow + format + reset,
+        logging.ERROR: red + format + reset,
+        logging.CRITICAL: bold_red + format + reset,
+    }
+
+    def format(self, record):
+        log_fmt = self.FORMATS.get(record.levelno)
+        formatter = logging.Formatter(log_fmt,datefmt="%Y-%m-%d %H:%M:%S")
+        return formatter.format(record)
+
+
+def get_console_handler():
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(eval('logging.'+LOGLEVEL))
+    console_handler.setFormatter(CustomFormatter())
+    return console_handler
+
+
+def get_logger(logger_name):
+    logger = logging.getLogger(logger_name)
+    #if not logger.hasHandlers():
+    logger.addHandler(get_console_handler())
+    print('Console')
+    logger.setLevel(logging.DEBUG)
+    logger.propagate = False
+    return logger
+
+neurapy_logger = get_logger("neurapy_logger")
 
 def generate_function(function_name, address):
     def wrapped_function(self, *args, **kwargs):
@@ -80,12 +112,9 @@ def generate_function(function_name, address):
             else:
                 win32api.SetConsoleCtrlHandler(self.stop, True)
         except Exception as e:
-            print(e)
-            #self.logger.debug
-            print("Not attaching signal handlers")
+            self.logger.debug("Not attaching signal handlers")
             
-        #self.logger.info(f"{function_name} called with args {args}, {kwargs}")
-        print(f"{function_name} called with args {args}, {kwargs}")
+        self.logger.info(f"{function_name} called with args {args}, {kwargs}")
         data = {"function": function_name, "args": args, "kwargs": kwargs}
         sock.sendall(json.dumps(data).encode("utf-8"))
         new_data = sock.recv(8192)
@@ -101,39 +130,42 @@ def generate_function(function_name, address):
 
 
 class Robot:
-#    def __init__(self):
-#        self.__server_address = ('192.168.2.13',65432)
-#        log.info(str(self.__server_address))
-    
     def __init__(self, parent=None):
         #super().__init__()
-        self.parent = parent
+        self.parent             = parent
+
+        self.__server_address   = (SOCKET_ADDRESS, SOCKET_PORT)
+        self.__functions        = ["get_functions","initialize_attributes"]
         
-        self.__server_address = ("192.168.2.13", 65432) # small robot
-        #self.__server_address = ("192.168.2.14", 8081)
-        self.__functions = ["get_functions","stop","initialize_attributes"]
-        self.counter = 0
-        self.multiplier = 1
-        self.logger = log
+        self.counter            = 0
+        self.multiplier         = 1
+        self.logger             = neurapy_logger
+        
+        self.is_alive           = False
+        
         for function in self.__functions:
-            setattr( self, function, MethodType(generate_function(function, self.__server_address), self),)
+            setattr(
+                self,
+                function,
+                MethodType(generate_function(function, self.__server_address), self),
+            )
 
         for key, value in self.initialize_attributes().items():
             setattr(self, key, value)
-            
         for method in self.get_functions():
             if method != "list_methods":
-                setattr( self,  method, MethodType(generate_function(method, self.__server_address), self), )     
-        
-        #self.logger.info(f"Robot initialized with following functions {self.__functions} and robot version {self.version}")
+                setattr(
+                    self,
+                    method,
+                    MethodType(generate_function(method, self.__server_address), self),
+                )     
+        self.logger.info(f"Robot initialized with following functions {self.__functions} and robot version {self.version}")
         if self.version != VERSION:
-            #self.logger.warning(f"Current client version is not compatiable with the version of the server running on the robot. Some of the functionlities specified in the documentation might not work in the intended way. Please upgrade to the correct version .Client Version : {VERSION},Server Version : {self.version}")
-            self.tprint(f"Current client version is not compatiable with the version of the server") # running on the robot. Some of the functionlities specified in the documentation might not work in the intended way. Please upgrade to the correct version .Client Version : {VERSION},Server Version : {self.version}")
-        
-        #self.start_diagnostics_monitor()
+            self.logger.warning(f"Current client version is not compatiable with the version of the server running on the robot. Some of the functionlities specified in the documentation might not work in the intended way. Please upgrade to the correct version .Client Version : {VERSION},Server Version : {self.version}")
+        self.start_diagnostics_monitor()
         
     def help(self, name):
-        print(self.get_doc(name))  
+        print(self.get_doc(name))
     
     def tprint(self, txt, stam = None):
         "stam supports print line 2 arguments"
@@ -141,17 +173,6 @@ class Robot:
         #self.logger.info(txt)
         print(txt)
         
-#    def connect(self):
-#        self.__functions = ['move_joint','move_linear', 'move_circular', 'move_composite', 'record_path', 'power',\
-#            'zero_g', 'io', 'set_tool', 'gripper', 'wait', 'override', 'pause', 'unpause', 'stop', 'ik_fk', \
-#            'robot_status', 'program_status','get_point','get_warnings','get_errors','motion_status','initialize_attributes']
-#        self.__functions = ['get_point','initialize_attributes']
-#        for function in self.__functions:
-#            setattr(self, function, MethodType(generate_function(function,self.__server_address), self))
-#        
-#        for key, value in self.initialize_attributes().items():
-#            setattr(self,key,value)
-       
         
     def list_methods(self):
         """To list the available functions in the API"""
@@ -282,10 +303,7 @@ class Robot:
     def get_robot_status(self):
         sts = self.robot_status()
         return sts
-        
-    def stop(self, value):
-        # stop the robot
-        self.r.stop()        
+     
         
 #    def MoveJoint(self, JointAngles, j_Speed, j_Acc):
 #        #r.move_joint(p)
@@ -389,6 +407,10 @@ class Robot:
         res      = self.move_linear_from_current_position([p], 5, 1)
         return True  
     
+    
+    ## -------------------------------
+    #  -- INTERFACES ---
+    ## -------------------------------     
     def Init(self):
         "compatability"
         self.robot_info()
@@ -398,6 +420,34 @@ class Robot:
         self.power_on()
         self.switch_to_automatic_mode()  
         self.Print('Start')
+        
+    def Stop(self, value):
+        # stop the robot
+        self.stop()   
+        
+    def IsConnected(self):
+        # chck if the robot is there
+        ret = self.is_connected()         
+        return ret
+    
+    def IsHome(self):
+        "check default position"
+        pose = self.get_pose_euler()
+        return True
+        
+
+    def GetZamaOut(self):
+        "compatability"
+        ret = True
+        self.Print('GetZamaOut')  
+        return ret
+
+    def GetUUTOut(self):
+        "compatability"
+        ret = True
+        self.Print('GetUUTOut')  
+        return ret        
+        
         
     def Print(self, txt='',level='I'):
 
@@ -498,14 +548,26 @@ class TestRobotAPI: #unittest.TestCase
         
         pose = self.r.get_pose_euler()
        
+    def TestGripper(self):
+        self.r.robot_info() 
+        #self.r.list_methods()
+        self.r.power_on()
+        self.r.switch_to_automatic_mode()
+        
+        self.set_gripper('open')
+        time.sleep(1)
+        self.set_gripper('close')
+        time.sleep(1)
+        self.set_gripper('open')
 
 #%%
 if __name__ == '__main__':
     
     #from Robot import TestRobotAPI
     tapi = TestRobotAPI()
-    tapi.TestInfo()    # ok
-    #tapi.TestMotion() # ok
+    #tapi.TestInfo()    # ok
+    tapi.TestMotion() # ok
     #tapi.TestCommands() # ok
     #tapi.TestEulerMotion() # ok
-    tapi.TestSwitchTool() # 
+    #tapi.TestSwitchTool() # 
+    #tapi.TestGripper() # 

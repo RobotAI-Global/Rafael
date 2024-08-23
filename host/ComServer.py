@@ -3,7 +3,7 @@
 
 """
 
-from Packet import Packet
+from host.Packet import Packet
 import socket
 from queue import Queue
 from threading import Thread
@@ -151,7 +151,12 @@ class ComServer:
         
     def Stop(self):
         self.stopTask = True 
-        self.Print('Stop')        
+        self.Print('Stop')  
+        
+    def IsConnected(self):
+        "indicates if client is connected"
+        ret = not(self.conn is None)
+        return ret
         
 
     def Print(self, txt):
