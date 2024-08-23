@@ -8,14 +8,32 @@ Test Comm Client and Server for Host
 
 """
 
-from ComClient import ComClient
-from ComServer import ComServer
+from host.ComClient import ComClient
+from host.ComServer import ComServer
 import time
 
 
 COMM_IP     = '127.0.0.1'
 COMM_PORT   = 8480
 TIMEOUT     = 10   # sec
+
+#%% Logger
+import logging
+logger      = logging.getLogger("robot")
+#formatter    = logging.Formatter("{levelname} - {message}", style="{")
+#formatter   = logging.Formatter('[%(asctime)s.%(msecs)03d] {%(filename)6s:%(lineno)3d} %(levelname)s - %(message)s', datefmt="%M:%S", style="{")
+formatter   = logging.Formatter('[%(asctime)s] - {%(filename)12s:%(lineno)3d} - %(levelname)s - %(message)s')
+logger.setLevel("DEBUG")
+
+console_handler = logging.StreamHandler()
+console_handler.setLevel("DEBUG")
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
+
+file_handler = logging.FileHandler("main_app.log", mode="a", encoding="utf-8")
+file_handler.setLevel("WARNING")
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
 
        
 #%% Tests           
@@ -46,44 +64,47 @@ class TestServerClient: #unittest.TestCase
          
     def TestStartStop(self): 
         "test connect and disconnect"
-        print('Cycle 1 ========')
+        self.Print('Cycle 1 ========')
         self.Start()
         time.sleep(1)
         self.Stop()
-        print('Cycle 2 ========')
+        self.Print('Cycle 2 ========')
         self.Start()
         time.sleep(1)
         self.Stop()        
         
     def TestOneMessage(self):
         "test message send"
-        print('Msg 1 ========')
+        self.Print('Msg 1 ========')
         self.Start()
         command     = '6'
-        print('Sending....')
+        self.Print('Sending....')
         self.client.queueFromHost.put(command)
         time.sleep(1)
-        print('Receiving....')
+        self.Print('Receiving....')
         data = self.client.queueToHost.put(10)
-        print(data)
+        self.Print(data)
         self.Stop()
     
         
     def TestAllMessages(self):
         "test messages to send"
-        
+        self.Print('Test starts')
         self.Start()
         
         msgList = ['5', '6', '1'] 
         for command in msgList:
-            print('Sending %s....' %str(command))
+            self.Print('Sending %s....' %str(command))
             self.client.queueFromHost.put(command)
             time.sleep(1)
-            print('Receiving....')
+            self.Print('Receiving....')
             data = self.client.queueToHost.put(10)
-            print(data)
+            self.Print(data)
             
         self.Stop()
+        
+    def Print(self,txt):
+        logger.info(str(txt))
 
 
         

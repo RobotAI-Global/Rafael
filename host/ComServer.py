@@ -109,7 +109,7 @@ class ComServer:
         self.msgPacket = self.queueToHost.get()
         
         # prepar data to be send to the client
-        self.Print('Transmit : ')
+        self.Print('Transmit ... ')
         self.dataBinary = self.msgPacket.packet_send()          	
         #print('Tx :',self.dataBinary)
         
@@ -118,17 +118,26 @@ class ComServer:
         
     def RecvMessage(self):
         "called to get packet"
-        msgFromHost = self.queueFromHost.get()
+        if not self.queueFromHost.empty():
+            msgFromHost = self.queueFromHost.get()
+        else:
+            msgFromHost = Packet()  # empty packet
+            
         return msgFromHost
     
     def SendMessage(self, msgToHost):
         "called to send packet"
-        ret = False
+        
+        # do not dend empty messages
+        if msgToHost.command == 0:
+            return True
+        
         if self.queueToHost.empty():        
             self.queueToHost.put(msgToHost)
             ret  = True
         else:
             self.Print('Busy : Packet Drop')
+            ret = False
             
         return ret    
         
@@ -168,8 +177,10 @@ class ComServer:
         
 
     def Print(self, txt):
+        #ptxt = 'I: SRV: %s' %str(txt)
+        logger.info(txt) 
         #print('I: SRV: %s' %str(txt))   
-        logger.info(txt)                                 
+                             
         
 if __name__ == '__main__':
     s = ComServer()

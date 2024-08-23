@@ -120,6 +120,7 @@ def generate_function(function_name, address):
                 win32api.SetConsoleCtrlHandler(self.stop, True)
         except Exception as e:
             self.logger.debug("Not attaching signal handlers")
+            print(e)
             
         self.logger.info(f"{function_name} called with args {args}, {kwargs}")
         data = {"function": function_name, "args": args, "kwargs": kwargs}

@@ -1,6 +1,13 @@
 import struct
 import datetime
 
+#%% Logger
+import logging
+logger      = logging.getLogger("robot")
+
+
+#%% Main
+
 class Packet:
 
     def __init__(self):    
@@ -18,7 +25,7 @@ class Packet:
         self.manual_auto    = 0
         self.UUT_type       = 1
         self.stand_number   = 0
-        self.command        = 7
+        self.command        = 0 #7
         
         # opcode 52
         self.bit_status     = 0
@@ -31,20 +38,20 @@ class Packet:
         
     def extract_header(self, binaryData = b''):
         if len(binaryData) < 16:
-            print("No header received")
+            self.tprint("No header received")
             return False 
                
         data = struct.unpack('<LLLL', binaryData[0:16])
         #print("Data recived in extract header fun: ", data)               
         
         self.wsync, self.msgSize, self.cmdCode, self.msgCount = data         
-        print("Header extract: ", self.wsync, self.msgSize, self.cmdCode, self.msgCount)        
+        self.tprint("Header extract: ", self.wsync, self.msgSize, self.cmdCode, self.msgCount)        
                
         return True
     
     def create_header(self):
         data = (self.wsync, self.msgSize, self.cmdCode, self.msgCount)
-        print("Creating header: ", data) 
+        self.tprint("Creating header: ", data) 
 
         dataBinary = struct.pack("<LLLL", data[0],data[1],data[2],data[3])           	
   
@@ -53,14 +60,14 @@ class Packet:
     def extract_data(self, binaryData = b''):
         # extract data
         if self.cmdCode == 50:
-            print('OpCode 50 Not supported')
+            self.tprint('OpCode 50 Not supported')
             return False
         
         elif self.cmdCode == 51:
             data = struct.unpack('<LLLL', binaryData[16:32])   
             self.manual_auto, self.UUT_type, self.stand_number, self.command = data
             
-            print('Data extract OpCode 51: ', self.manual_auto, self.UUT_type, self.stand_number, self.command)
+            self.tprint('Data extract OpCode 51: ', self.manual_auto, self.UUT_type, self.stand_number, self.command)
             
         elif self.cmdCode == 52:
             data = struct.unpack('<LL', binaryData[16:24])   
@@ -69,7 +76,7 @@ class Packet:
             data = struct.unpack('<LLLLLLLLLL', binaryData[24:65])
             self.error_codes = data 
             
-            print('Data extract OpCode 52: ', self.bit_status, self.seconds,  self.error_codes)
+            self.tprint('Data extract OpCode 52: ', self.bit_status, self.seconds,  self.error_codes)
         
         elif self.cmdCode == 53:
             data = struct.unpack('<L', binaryData[16:20])
@@ -78,7 +85,7 @@ class Packet:
             data = struct.unpack('<LLLLLLLLLL', binaryData[20:60])
             self.general_status = data 
             
-            print('Data extract OpCode 53: ', self.last_cmd_status, self.general_status)    
+            self.tprint('Data extract OpCode 53: ', self.last_cmd_status, self.general_status)    
                     
         else:
             
@@ -97,7 +104,7 @@ class Packet:
         elif self.cmdCode == 51:             
             data = (self.manual_auto, self.UUT_type, self.stand_number, self.command)            
             dataBinary = struct.pack("<LLLL", data[0],data[1],data[2],data[3])
-            print('Create date OpCode 51: ',self.manual_auto, self.UUT_type, self.stand_number, self.command)
+            self.tprint('Create date OpCode 51: ',self.manual_auto, self.UUT_type, self.stand_number, self.command)
             #print('Create binary date: ', dataBinary)
             
         elif self.cmdCode == 52:            
@@ -112,7 +119,7 @@ class Packet:
             dataBinary_4 = struct.pack("<LL", data[0],data[1])           
             
             dataBinary = dataBinary_1 + dataBinary_2 + dataBinary_3 + dataBinary_4
-            print('Create date OpCode 52:',self.bit_status, self.seconds, self.error_codes)
+            self.tprint('Create date OpCode 52:',self.bit_status, self.seconds, self.error_codes)
             #print('Create binary date: ', dataBinary)             
             
         elif self.cmdCode == 53:
@@ -127,7 +134,7 @@ class Packet:
             dataBinary_4 = struct.pack("<LL", data[0],data[1])           
             
             dataBinary = dataBinary_1 + dataBinary_2 + dataBinary_3 + dataBinary_4
-            print('Create date OpCode 53:', self.last_cmd_status, self.general_status)
+            self.tprint('Create date OpCode 53:', self.last_cmd_status, self.general_status)
             #print('Create binary date: ', dataBinary)                            
                 
         else:
@@ -208,10 +215,14 @@ class Packet:
         
         return binaryData  
 
-    def tprint(self,txt):
+    def tprint(self, *args, **kwargs):
         if not self.debugOn:
-            return
-        print('I: PKT: %s' %str(txt))
+            return        
+        newstr = ""
+        for a in args:
+            newstr+=str(a)+' '        
+        #print('I: PKT: %s' %str(txt))
+        logger.info(newstr)
     
     # ****** Subroutines to test the packet ******
     def test_header(self):

@@ -43,7 +43,8 @@ from threading import Thread
 #%% Logger
 import logging
 logger      = logging.getLogger("robot")
-formatter   = logging.Formatter('[%(asctime)s.%(msecs)03d] {%(filename)6s:%(lineno)3d} %(levelname)s - %(message)s', datefmt="%M:%S", style="{")
+#formatter   = logging.Formatter('[%(asctime)s.%(msecs)03d] {%(filename)6s:%(lineno)3d} %(levelname)s - %(message)s', datefmt="%M:%S", style="{")
+formatter   = logging.Formatter('[%(asctime)s] - [%(filename)12s:%(lineno)3d] - %(levelname)s - %(message)s')
 logger.setLevel("DEBUG")
 
 console_handler = logging.StreamHandler()
@@ -88,7 +89,7 @@ from disc.ControllerHHC import IOController
 #SAFETY_MARGIN_Z               = 50  # mm
 #TX_STEP_SIZE                  = 0.0400 # metr
 #SCAN_POINTS                   = [[-500,-200, 400, 94, 0, -82],[-500,0,400, 94, 0, -82],[-500,0,600, 94, 0, -82],[-500,-220,600, 94, 0, -82],[-665.01 ,-251.23 , 648.96 , 94, 0, -82]]
-HOME_POSE                     = [-500.0, 38.0, 430.0, 94.3088530785335, 0.6875493541569879, -82.21944360127314]
+#HOME_POSE                     = [-500.0, 38.0, 430.0, 94.3088530785335, 0.6875493541569879, -82.21944360127314]
 #        
 
 #%% 
@@ -111,7 +112,7 @@ class STATE(Enum):
     FINISH              = 100
     ERROR               = 401
     
-# A State has an operation, and can be moved into the next State given an Input:
+# An error manager:
 class ERROR(Enum):
     NONE                = 0    
     NO_CONNECTION       = 101
@@ -237,7 +238,8 @@ class MainProgram:
     #  -- STATES ---
     ## -------------------------------                
     def StateSpecialMessage(self, msg_in, curr_state):
-        "special messages"
+        "special messages  "
+        "msg_in.command == 0 - empty message"
         msg_out     = msg_in
         next_state  = curr_state
         
@@ -302,7 +304,10 @@ class MainProgram:
         next_state  = curr_state
         
         #if curr_state == 
-        if msg_in.command == 2:
+        if msg_in.command == 0 : # - empty message"
+            pass
+        
+        elif msg_in.command == 2:
             self.Print('2 - Load UUT to index table command')
             self.error = ERROR.NONE
             next_state = STATE.LOAD_UUT_TO_TABLE
@@ -492,7 +497,7 @@ class MainProgram:
     def Transition(self, msg_in):
         "transition to a different state"
         curr_state = self.state
-        next_state = self.state
+        #next_state = self.state
         
         # deal with special messages
         msg_out, curr_state = self.StateSpecialMessage(msg_in, curr_state)
@@ -541,8 +546,9 @@ class MainProgram:
             msg_out, next_state = msg_in, STATE.ERROR
             self.Print('Not supprted state')
             
-        
-        self.Print('Transition to %s' %str(next_state))   
+        if curr_state != next_state:
+            self.Print('Transition from %s to %s' %(str(curr_state),str(next_state)))  
+            
         self.state = next_state
         return msg_out        
         
@@ -571,14 +577,14 @@ class MainProgram:
     def Print(self, txt='',level='I'):
 
         if level == 'I':
-            ptxt = 'I: PRG: %s' % txt
-            logger.info(ptxt)
+            #ptxt = 'I: PRG: %s' % txt
+            logger.info(txt)
         if level == 'W':
-            ptxt = 'W: PRG: %s' % txt
-            logger.warning(ptxt)
+            #ptxt = 'W: PRG: %s' % txt
+            logger.warning(txt)
         if level == 'E':
-            ptxt = 'E: PRG: %s' % txt
-            logger.error(ptxt)
+            #ptxt = 'E: PRG: %s' % txt
+            logger.error(txt)
         #print(ptxt)
 
 

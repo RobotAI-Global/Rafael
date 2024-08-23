@@ -4,6 +4,13 @@ from queue import Queue
 from threading import Thread
 import time
 
+#%% Logger
+import logging
+logger      = logging.getLogger("robot")
+
+
+
+#%% Main
 class ComClient:
     def __init__(self, parent=None, host = '127.0.0.1', port = 5000):
         
@@ -115,7 +122,9 @@ class ComClient:
         self.Print('closed')
         
     def Print(self, txt):
-        print('I: CLI: %s' %str(txt))
+        #ptxt = 'I: CLI: %s' %str(txt)
+        #print()
+        logger.info(txt) 
         
     def TestHostSimulator(self, msgList = []):
         "simulates host commands"
