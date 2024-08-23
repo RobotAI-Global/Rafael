@@ -23,7 +23,7 @@ server_version   = '0101'
 #import tkinter as tk
 #import threading
 #import json
-import logging as log
+#import logging as log
 #import time   # just to measure switch time
 #import logging
 from threading import Thread
@@ -40,14 +40,29 @@ from threading import Thread
 #sys.path.insert(1, r'D:\RobotAI\Customers\VineRoboticq\Code\RobotManager\vision')
 
 #import os
+#%% Logger
+import logging
+logger      = logging.getLogger("robot")
+formatter   = logging.Formatter('[%(asctime)s.%(msecs)03d] {%(filename)6s:%(lineno)3d} %(levelname)s - %(message)s', datefmt="%M:%S", style="{")
+logger.setLevel("DEBUG")
 
-log.basicConfig(level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)6s:%(lineno)3d} %(levelname)s - %(message)s',  datefmt="%M:%S")
+console_handler = logging.StreamHandler()
+console_handler.setLevel("DEBUG")
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
+
+file_handler = logging.FileHandler("main_app.log", mode="a", encoding="utf-8")
+file_handler.setLevel("WARNING")
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
+
+#log.basicConfig(level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)6s:%(lineno)3d} %(levelname)s - %(message)s',  datefmt="%M:%S")
 
 
 #import numpy as np
 #from threading import Thread
 
-
+#%% 
 #try:
 from control.ConfigManager import ConfigManager
 from robot.Robot import Robot as RobotManager
@@ -133,6 +148,8 @@ class MainProgram:
         # connectio to IO
         self.ioc        = IOController(parent = self)
         
+        self.Print('Created')
+        
 
     ## -------------------------------
     #  -- Init All---
@@ -158,9 +175,9 @@ class MainProgram:
         
     def Stop(self):
         "stop everything"        
-        self.host.Start()
-        self.rbm.Start()
-        self.ioc.Start()
+        self.host.Stop()
+        self.rbm.Stop()
+        self.ioc.Stop()
         self.Print('Stop')   
         return True
         
@@ -555,14 +572,14 @@ class MainProgram:
 
         if level == 'I':
             ptxt = 'I: PRG: %s' % txt
-            #log.info(ptxt)
+            logger.info(ptxt)
         if level == 'W':
             ptxt = 'W: PRG: %s' % txt
-            #log.warning(ptxt)
+            logger.warning(ptxt)
         if level == 'E':
             ptxt = 'E: PRG: %s' % txt
-            #log.error(ptxt)
-        print(ptxt)
+            logger.error(ptxt)
+        #print(ptxt)
 
 
             

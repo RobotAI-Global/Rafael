@@ -27,7 +27,6 @@ from types import MethodType
 #import logging as log
 import sys
 import os
-import logging
 #from logging.handlers import TimedRotatingFileHandler
 import json
 from threading import Thread
@@ -51,52 +50,60 @@ MONITOR_CYCLE_TIME = 2
 SOCKET_ADDRESS = os.getenv("SOCKET_ADDRESS", "192.168.2.13")
 SOCKET_PORT = 65432
 
+#%% Logger
+import logging
+logger      = logging.getLogger("robot")
+
 #log.basicConfig(level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)6s:%(lineno)3d} %(levelname)s - %(message)s',  datefmt="%M:%S")
 #log.basicConfig(stream=sys.stdout, level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)s:%03(lineno)d} %(levelname)s - %(message)s',  datefmt="%M:%S")
 
 
-class CustomFormatter(logging.Formatter):
+#class CustomFormatter(logging.Formatter):
+#
+#    grey = "\x1b[38;20m"
+#    yellow = "\x1b[33;20m"
+#    red = "\x1b[31;20m"
+#    bold_red = "\x1b[31;1m"
+#    reset = "\x1b[0m"
+#    format = (
+#        "[%(asctime)s][%(name)s][%(levelname)s] : %(message)s :(%(filename)s:%(lineno)d)"
+#    )
+#
+#    FORMATS = {
+#        logging.DEBUG: grey + format + reset,
+#        logging.INFO: grey + format + reset,
+#        logging.WARNING: yellow + format + reset,
+#        logging.ERROR: red + format + reset,
+#        logging.CRITICAL: bold_red + format + reset,
+#    }
+#
+#    def format(self, record):
+#        log_fmt = self.FORMATS.get(record.levelno)
+#        formatter = logging.Formatter(log_fmt,datefmt="%Y-%m-%d %H:%M:%S")
+#        return formatter.format(record)
+#
+#
+#def get_console_handler():
+#    console_handler = logging.StreamHandler(sys.stdout)
+#    console_handler.setLevel(eval('logging.'+LOGLEVEL))
+#    console_handler.setFormatter(CustomFormatter())
+#    return console_handler
+#
+#
+#def get_logger(logger_name):
+#    logger = logging.getLogger(logger_name)
+#    #if not logger.hasHandlers():
+#    logger.addHandler(get_console_handler())
+#    print('Console')
+#    logger.setLevel(logging.DEBUG)
+#    logger.propagate = False
+#    return logger
+#
+#neurapy_logger = get_logger("neurapy_logger")
 
-    grey = "\x1b[38;20m"
-    yellow = "\x1b[33;20m"
-    red = "\x1b[31;20m"
-    bold_red = "\x1b[31;1m"
-    reset = "\x1b[0m"
-    format = (
-        "[%(asctime)s][%(name)s][%(levelname)s] : %(message)s :(%(filename)s:%(lineno)d)"
-    )
 
-    FORMATS = {
-        logging.DEBUG: grey + format + reset,
-        logging.INFO: grey + format + reset,
-        logging.WARNING: yellow + format + reset,
-        logging.ERROR: red + format + reset,
-        logging.CRITICAL: bold_red + format + reset,
-    }
+#%% Main
 
-    def format(self, record):
-        log_fmt = self.FORMATS.get(record.levelno)
-        formatter = logging.Formatter(log_fmt,datefmt="%Y-%m-%d %H:%M:%S")
-        return formatter.format(record)
-
-
-def get_console_handler():
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(eval('logging.'+LOGLEVEL))
-    console_handler.setFormatter(CustomFormatter())
-    return console_handler
-
-
-def get_logger(logger_name):
-    logger = logging.getLogger(logger_name)
-    #if not logger.hasHandlers():
-    logger.addHandler(get_console_handler())
-    print('Console')
-    logger.setLevel(logging.DEBUG)
-    logger.propagate = False
-    return logger
-
-neurapy_logger = get_logger("neurapy_logger")
 
 def generate_function(function_name, address):
     def wrapped_function(self, *args, **kwargs):
@@ -139,7 +146,7 @@ class Robot:
         
         self.counter            = 0
         self.multiplier         = 1
-        self.logger             = neurapy_logger
+        self.logger             = logger
         
         self.is_alive           = False
         
@@ -164,14 +171,16 @@ class Robot:
             self.logger.warning(f"Current client version is not compatiable with the version of the server running on the robot. Some of the functionlities specified in the documentation might not work in the intended way. Please upgrade to the correct version .Client Version : {VERSION},Server Version : {self.version}")
         self.start_diagnostics_monitor()
         
+        self.tprint('Created')
+        
     def help(self, name):
         print(self.get_doc(name))
     
     def tprint(self, txt, stam = None):
         "stam supports print line 2 arguments"
         txt = txt + str(stam) if stam is not None else txt
-        #self.logger.info(txt)
-        print(txt)
+        self.logger.info(txt)
+        #print(txt)
         
         
     def list_methods(self):
@@ -224,7 +233,7 @@ class Robot:
         elif pwr_switch == False:
             isSuccess = self.r.power_off()
         else:
-            print("robotMode: Wrong mode is provided: %s"%pwr_switch)
+            self.tprint("robotMode: Wrong mode is provided: %s"%pwr_switch)
 
         return isSuccess
         
@@ -236,7 +245,7 @@ class Robot:
         elif rMode == "semi_automatic":
             isSuccess = self.r.switch_to_semi_automatic_mode()
         else:
-            print("robotMode: Wrong mode is provided: %s"%rMode)
+            self.tprint("robotMode: Wrong mode is provided: %s"%rMode)
             isSuccess = False
 
         return isSuccess  
@@ -453,14 +462,15 @@ class Robot:
 
         if level == 'I':
             ptxt = 'I: ROB: %s' % txt
-            #log.info(ptxt)
+            logger.info(ptxt)
         if level == 'W':
             ptxt = 'W: ROB: %s' % txt
-            #log.warning(ptxt)
+            logger.warning(ptxt)
         if level == 'E':
             ptxt = 'E: ROB: %s' % txt
-            #log.error(ptxt)
-        print(ptxt)        
+            logger.error(ptxt)
+        
+        #print(ptxt)        
 
 #%% Tests           
 class TestRobotAPI: #unittest.TestCase

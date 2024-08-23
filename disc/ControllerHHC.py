@@ -22,9 +22,13 @@ Usage:
 import socket
 #from queue import Queue
 from threading import Thread
-import logging as log
 import time
 
+#%% Logger
+import logging
+logger      = logging.getLogger("robot")
+
+#%%
 class IOController:
     def __init__(self, parent=None):
         #super().__init__()
@@ -258,12 +262,13 @@ class IOController:
         
         if level == 'I':
             ptxt = 'I: IOC: %s' % txt
-            #log.info(ptxt)
+            logger.info(ptxt)
         if level == 'W':
             ptxt = 'W: IOC: %s' % txt
-            #log.warning(ptxt)
+            logger.warning(ptxt)
         if level == 'E':
             ptxt = 'E: IOC: %s' % txt
+            logger.error(ptxt)
             
         print(ptxt)
             

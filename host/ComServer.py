@@ -9,6 +9,14 @@ from queue import Queue
 from threading import Thread
 import time
 
+
+#%% Logger
+import logging
+logger      = logging.getLogger("robot")
+
+
+#%% Main
+
 class ComServer:
     
     def __init__(self, parent=None, host = '127.0.0.1', port = 5000):
@@ -160,56 +168,10 @@ class ComServer:
         
 
     def Print(self, txt):
-        print('I: SRV: %s' %str(txt))                                    
+        #print('I: SRV: %s' %str(txt))   
+        logger.info(txt)                                 
         
 if __name__ == '__main__':
     s = ComServer()
     s.Start()
     
-    
-    """
-    ## ------------------------------------  
-    # -- Host Control ---
-    ## ------------------------------------ 
-
-
-
-    def hostConnect(self):
-        # start
-        self.tprint('Starting host connection ...')
-        
-        # maybe already running
-        if self.vis is None:
-            #print(self.vis)
-            # runs Robot server and Multi Object Detection
-            self.vis    = HostManager(host = self.ip_vision, port = self.port_vision, debug = self.debugOn, config=self.cfg) #RobotServerThread(host = self.ip, port = self.port,  debug=self.debugOn, config = self.cfg)
-            self.vis.start()
-        elif self.vis.isAlive():   
-            self.tprint('Pose6D Connection is alive')
-        else:
-            #self.vis.start()
-            self.tprint('Vision Connection is restarted')
-            
-    def hostStop(self):
-        # stop
-        self.tprint('Stop host  ...')
-        self.vis.stop()
-            
-    def hostStatus(self):
-        # start
-        self.tprint('Getting host status ...')
-
-
-    def hostDisConnect(self):
-        # start
-        self.tprint('Disconnect from host ...')
-        
-        if self.sim is not None:  
-            self.sim.stop()       
-            
-        # maybe already running
-        if self.vis is not None:
-            self.vis.stop()
-            self.tprint('Stopping host thread...')         
-            
-    """
