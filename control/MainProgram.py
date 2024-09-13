@@ -123,6 +123,8 @@ class ERROR(Enum):
     TESTER_OPEN_BUHNA   = 202
     FINISH              = 300
     ERROR               = 401
+    EMERGENCY_STOP      = 402
+    NO_AIR_SUPPLY       = 403
 
 
 #%% 
@@ -173,6 +175,19 @@ class MainProgram:
         self.ioc.Start()
         self.Print('Start')
         return True
+    
+    def Home(self):
+        "set system in the home"
+        
+        # set gripper to home position
+        
+        ret = self.rbm.Home()
+        # if robot not in home position - abort
+        if not ret:
+            self.Print('Failed to put robot in home posution')
+            return
+        
+        ret = self.ioc.Home()
         
     def Stop(self):
         "stop everything"        
@@ -194,13 +209,22 @@ class MainProgram:
         self.Print('Connectivity : %s' %str(ret))
         return ret   
     
-    def CheckSystemState(self):
+    def CheckSystemHome(self):
         "check if all modules are in home position"
         ret         = True
         ret         = self.rbm.IsHome() and ret
         #ret         = self.host.IsHome() and ret
         ret         = self.ioc.IsHome() and ret
         self.Print('Home position : %s' %str(ret))
+        return ret   
+
+    def CheckSystemAirSupply(self):
+        "check if system has air"
+        ret         = True
+        #ret         = self.rbm.IsHome() and ret
+        #ret         = self.host.IsHome() and ret
+        ret         = self.ioc.CheckAirSupply() and ret
+        self.Print('Air status : %s' %str(ret))
         return ret       
     
 #    def WaitFor(self):
@@ -246,6 +270,16 @@ class MainProgram:
         if msg_in.command == 1:
             self.Print('1 - STOP command')
             self.error = ERROR.NONE
+            next_state = STATE.STOP    
+            
+        if self.ioc.CheckEmergencyStop():
+            self.Print('Emergency stop is pressed')
+            self.error = ERROR.EMERGENCY_STOP
+            next_state = STATE.STOP  
+            
+        if self.ioc.CheckAirSupply():
+            self.Print('No air supply')
+            self.error = ERROR.NO_AIR_SUPPLY
             next_state = STATE.STOP          
         
         return msg_out, next_state
@@ -351,26 +385,67 @@ class MainProgram:
         msg_out     = msg_in
         next_state  = curr_state
         
-        # check if UUT in place
+        # check if UUT in place - statw wait
+        ret = self.ioc.CheckUUTInPlaceLoadPosition()
+        while not ret:
+            ret = self.ioc.CheckUUTInPlaceLoadPosition()
         
-        # 2 switch rotate sensor
+        # 2 switch rotate sensor - state wait
+        ret = self.ioc.CheckTwoButtonPush()
+        while not ret:
+            ret = self.ioc.CheckTwoButtonPush()        
         
         # move table to the next index
         self.ioc.NextTableIndex()
         
+        # in the final state send done to host
+
         return msg_out, next_state  
+    
+    def StateWaitUUTInPlace(self, msg_in, curr_state):
+        "wait to load uut on table by human"
+        msg_out     = msg_in
+        next_state  = curr_state
+        
+        ret = self.ioc.CheckUUTInPlaceLoadPosition()
+        if ret:
+            self.Print('UUT in place')
+            self.error = ERROR.NONE
+            next_state = STATE.WAIT_TWO_BUTTON_PRESS              
+        
+        return msg_out, next_state 
+
+    def StateWaitUUTTwoButtonPress(self, msg_in, curr_state):
+        "push two buttons"
+        msg_out     = msg_in
+        next_state  = curr_state
+        
+        ret = self.ioc.CheckTwoButtonPush()
+        if ret:
+            self.Print('Two button switch detected')
+            self.error = ERROR.NONE
+            next_state = STATE.NEXT_TABLE_INDE              
+        
+        return msg_out, next_state         
+        
     
     def StateUnLoadUUTFromTable(self, msg_in, curr_state):
         "unload uut from table"
         msg_out     = msg_in
         next_state  = curr_state
         
-        # check if UUT in place - near operator
+        # check if UUT in place - statw wait
+        ret = self.ioc.CheckUUTInPlaceLoadPosition()
+        while ret: # while UUT inside
+            ret = self.ioc.CheckUUTInPlaceLoadPosition()
         
-        # 2 switch rotate sensor
+        # 2 switch rotate sensor - state wait
+        ret = self.ioc.CheckTwoButtonPush()
+        while not ret:
+            ret = self.ioc.CheckTwoButtonPush() 
         
         # move table to the next index
-        self.ioc.NextTableIndex()
+        self.ioc.NextTableIndex(increment = -1)
         
         return msg_out, next_state   
     
@@ -379,8 +454,105 @@ class MainProgram:
         "check if"
         ret         = False
         msg_out     = msg_in
-        next_state  = curr_state     
+        next_state  = curr_state  
         
+        # 1. Check robot in the backward position
+        ret         = self.ioc.LinearAxisBackwardPosition()
+        if not ret:
+            self.Print('Robot linear axis is not in backward position')
+            self.error = ERROR.ROBOT_BACKWARD_POSITION
+            next_state = STATE.ERROR 
+            
+        # 2. Check robot in the home position
+        ret         = self.rbm.CheckHomePosition()
+        if not ret:
+            self.Print('Robot is not in home position')
+            self.error = ERROR.ROBOT_HOME_POSITION
+            next_state = STATE.ERROR   
+            
+        # 3. Check robot gripper in open position
+        ret         = self.rbm.CheckGripperOpen()
+        if not ret:
+            self.Print('Gripper is not in open position')
+            self.error = ERROR.GRIPPER_OPEN_POSITION
+            next_state = STATE.ERROR  
+            
+        # 6. LOAD UUT 
+        ret        = self.rbm.PickUUTFromTable()           
+        if not ret:
+            self.Print('Robot pick from table UUT failure')
+            self.error = ERROR.ROBOT_LOAD_UUT
+            next_state = STATE.ERROR              
+        
+        # 7. open door
+        ret         = self.ioc.OpenTestCellDoor()
+        if not ret:
+            self.Print('Tester open door timeout')
+            self.error = ERROR.TESTER_OPEN_DOOR
+            next_state = STATE.ERROR  
+            
+        # 8. move robot forward
+        ret        = self.rbm.MoveRobotLinearAxisForward()           
+        if not ret:
+            self.Print('Robot move forward timeout')
+            self.error = ERROR.ROBOT_MOVE_FORWARD
+            next_state = STATE.ERROR 
+            
+        # 9. LOAD UUT 
+        ret        = self.rbm.LoadUUTToTester()           
+        if not ret:
+            self.Print('Robot load UUT failure')
+            self.error = ERROR.ROBOT_LOAD_UUT
+            next_state = STATE.ERROR         
+        
+        # 10. move backward
+        ret         = self.ioc.LinearAxisBackwardPosition()
+        if not ret:
+            self.Print('Robot linear axis is not in backward position')
+            self.error = ERROR.ROBOT_BACKWARD_POSITION
+            next_state = STATE.ERROR          
+            
+        # 11. get zama out by robot
+        ret        = self.rbm.PickTestConnector()
+        if not ret:
+            self.Print('Robot pick test connector')
+            self.error = ERROR.ROBOT_PICK_CONNECTOR
+            next_state = STATE.ERROR          
+        
+        # 12. plug connector
+        ret        = self.rbm.PlugTestConnectorInUUT() 
+        if not ret:
+            self.Print('Robot plug test connector')
+            self.error = ERROR.ROBOT_PLUG_CONNECTOR
+            next_state = STATE.ERROR  
+            
+        # 13. move backward
+        ret         = self.ioc.LinearAxisBackwardPosition()
+        if not ret:
+            self.Print('Robot linear axis is not in backward position')
+            self.error = ERROR.ROBOT_BACKWARD_POSITION
+            next_state = STATE.ERROR    
+            
+        # 14. move robot home
+        ret         = self.rbm.Home()
+        if not ret:
+            self.Print('Robot is not in home position')
+            self.error = ERROR.ROBOT_HOME_POSITION
+            next_state = STATE.ERROR                
+        
+        # 14. close door
+        ret        = self.ioc.CloseDoor()   
+        if not ret:
+            self.Print('Door is not closed')
+            self.error = ERROR.CLOSED_DOOR
+            next_state = STATE.ERROR 
+        
+        # 15. Start test
+        ret       = self.host.ReadyForTest()
+        if not ret:
+            self.Print('Send message')
+            self.error = ERROR.COMM_FAILURE
+            next_state = STATE.ERROR         
         
         return msg_out, next_state
     
@@ -390,31 +562,84 @@ class MainProgram:
         msg_out     = msg_in
         next_state  = curr_state   
         
-        # 2. open door
-        ret         = self.ioc.OpenDoor()
+        # 0. no UUT
+        ret        = self.ioc.CheckTableNoUUT()              
+        if not ret:
+            self.Print('Table has no place for  UUT')
+            self.error = ERROR.TABLE_NO_PLACE
+            next_state = STATE.ERROR        
+        
+        # 1. Check robot in the backward position
+        ret         = self.ioc.LinearAxisBackwardPosition()
+        if not ret:
+            self.Print('Robot linear axis is not in backward position')
+            self.error = ERROR.ROBOT_BACKWARD_POSITION
+            next_state = STATE.ERROR 
+            
+        # 2. Check robot in the home position
+        ret         = self.rbm.CheckHomePosition()
+        if not ret:
+            self.Print('Robot is not in home position')
+            self.error = ERROR.ROBOT_HOME_POSITION
+            next_state = STATE.ERROR           
+        
+        # 3. open door
+        ret         = self.ioc.OpenTestCellDoor()
         if not ret:
             self.Print('Tester open door timeout')
             self.error = ERROR.TESTER_OPEN_DOOR
             next_state = STATE.ERROR  
             
-        # 3. check buhna
-        ret        = self.ioc.BuhnaIsOpen()
+        # 4. unplug connector
+        ret        = self.rbm.UnPlugTestConnectorInUUT() 
         if not ret:
-            self.Print('Tester open buhna timeout')
-            self.error = ERROR.TESTER_OPEN_BUHNA
+            self.Print('Robot unplug test connector')
+            self.error = ERROR.ROBOT_PLUG_CONNECTOR
             next_state = STATE.ERROR  
             
-        # 4. get zama out by robot
-        ret        = self.rbm.GetZamaOut()
-        
+        # 5. put connector back
+        ret        = self.rbm.PutTestConnector()
+        if not ret:
+            self.Print('Robot put test connector')
+            self.error = ERROR.ROBOT_PICK_CONNECTOR
+            next_state = STATE.ERROR 
+            
+
         # 6. take out uut
         ret        = self.rbm.GetUUTOut() 
-        
-        # 7. close door
+        if not ret:
+            self.Print('Robot take out UUT')
+            self.error = ERROR.ROBOT_UNLOAD_UUT
+            next_state = STATE.ERROR   
+            
+        # 7. Check robot in the home position
+        ret         = self.rbm.CheckHomePosition()
+        if not ret:
+            self.Print('Robot is not in home position')
+            self.error = ERROR.ROBOT_HOME_POSITION
+            next_state = STATE.ERROR              
+            
+        # 8. Check axis in the backward position
+        ret         = self.ioc.LinearAxisBackwardPosition()
+        if not ret:
+            self.Print('Robot linear axis is not in backward position')
+            self.error = ERROR.ROBOT_BACKWARD_POSITION
+            next_state = STATE.ERROR 
+            
+        # 9. close door
         ret        = self.ioc.CloseDoor()         
-        
-        # 8. no UUT
-        ret        = self.ioc.CheckTableNoUUT()  
+        if not ret:
+            self.Print('Close door problem')
+            self.error = ERROR.CLOSE_DOOR
+            next_state = STATE.ERROR 
+            
+        # 10. Put UUT  back
+        ret        = self.rbm.PutUUTOnTable()           
+        if not ret:
+            self.Print('Robot put on table UUT failure')
+            self.error = ERROR.ROBOT_UNLOAD_UUT
+            next_state = STATE.ERROR             
+
             
         return msg_out, next_state
     

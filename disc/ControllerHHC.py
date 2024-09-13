@@ -14,6 +14,7 @@ Usage:
 -----------------------------
  Ver    Date     Who    Descr
 -----------------------------
+0202    12.09.24 UD     IO interface
 0101    11.08.24 UD     Created
 -----------------------------
 
@@ -32,7 +33,7 @@ logger      = logging.getLogger("robot")
 class IOController:
     def __init__(self, parent=None):
         #super().__init__()
-        self.parent = parent
+        self.parent         = parent
         # Server information
         self.ServerIp       = '192.168.0.105'  # IP address of the controller
         self.ServerPort     = 5000  # port number of the controller  
@@ -40,7 +41,15 @@ class IOController:
         self.ts             = None   # thread
         self.stopTask       = False
         
+        # time out variable
+        self.TIMEOUT_CYLINDER = 10  # sec
+        
+        # count of stations : 1 upto 12 - total 12, 0 - undefined
+        self.uut_counter   = 0
+        
     def Init(self):
+        
+        self.uut_counter   = 0
         self.Print('Init')
         
         
@@ -204,19 +213,23 @@ class IOController:
         self.Print('Current table position ...')
         return True
     
-    def NextTableIndex(self):
+    def NextTableIndex(self, increment = 1):
         # go to next position
         self.Print('Next table position ...')
+        
+        # two stations
+        self.MoveTableIndex()
+        self.MoveTableIndex()
+  
+        self.uut_counter += increment 
+
         return True
     
     ## ------------------------------------  
     # -- Tester Control ---
     ## ------------------------------------        
 
-    def OpenDoor(self):
-        # go to next position
-        self.Print('Open Door ...')
-        return True 
+
     
     def BuhnaIsOpen(self):
         # buhna is open
@@ -253,28 +266,271 @@ class IOController:
         self.ioc.SetOutput(addr,val)
         self.Print(f'IO sending value {val} to {addr}')
         
+    def CheckAirSupply(self):
+        "check if air is in"
+        
+        # set output to move backward
+        #self.SetOutput(1, '00')   
+        return True
+    
+    def CheckEmergencyStop(self):
+        "check if emergency is pressed"
+        
+        # set output to move backward
+        #self.SetOutput(1, '00')   
+        return True 
+    
+    def CheckUUTInPlaceLoadPosition(self):
+        "check if UUT in place for human"
+        
+        return True
+    
+    def CheckUUTInPlaceRobotPosition(self):
+        "check if UUT in place for robot"
+        
+        return True 
+    
+    def CheckTwoButtonPush(self):
+        "check if 2 buttons are pushed by human opeartor"
+        
+        ret1 = self.GetInput(1)    
+        ret2 = self.GetInput(2) 
+        
+        self.Print('Preassed %d and %d' %(ret1, ret2))
+        
+        ret    = ret1 and ret2
+        return ret    
+        
     def Disconnect(self):
         # disonnecteing
-        self.CloseConnectionWithController()   
+        self.CloseConnectionWithController()  
+        
+        
+    def LinearAxisForwardPosition(self):
+        "reads sensor forward position of the linear state"
+        
+        return True
+        
+    def LinearAxisBackwardPosition(self):
+        "reads sensor backward position of the linear state"  
+        
+        return True
+        
+    def GetRobotLinearAxisPosition(self):
+        """ 
+        
+        linear stage
+        
+        Returns:
+            ret : 0 - not defined, 1 - forward position, 2 - backward position
+        
+        """
+        
+        ret = 0
+        if self.LinearAxisForwardPosition():
+            ret = 1
+        elif self.LinearAxisBackwardPosition():
+            ret = 2
+        
+        return ret
+        
+        
+        
+    def CheckTableInHomePosition(self):
+        "return true only when in IO sens the home position : Table Home Position Sensor"
+        
+        return True
+    
+    
+    def SetTableIndex(self):
+        "moves the table for one index"
+    
+    def WaitForTableIndexDone(self):
+        "the table has reached index poxition and finished to move"
+        
+        return True
+    
+    def MoveTableIndex(self):
+        "rotates table by one position"
+        " the table has actual 12 statoins but totally is build for 24 indexes"
+        self.SetTableIndex()
+        ret = False
+        while not ret:            
+            ret = self.WaitForTableIndexDone()        
+        return True    
+        
+    def MoveTableToHomePosition(self):
+        "rotate table to home position"
+        ret = self.CheckTableInHomePosition()
+        while not ret:
+            self.MoveTableIndex()
+            ret = self.CheckTableInHomePosition()
+            
+    def MoveRobotLinearAxisBackward(self):
+        "moves robot to backward position"
+        
+        # set output to move backward
+        #self.SetOutput(1, '00')
+        
+        ret = 0
+        t_start = time.time()
+        timeout = self.TIMEOUT_CYLINDER
+        while not ret == 2:  
+            # stage is moving
+            time.sleep(1)  # 
+            
+            # check back poition gain
+            ret     = self.GetRobotLinearAxisPosition()
+            
+            if (time.time() - t_start) > timeout:
+                self.Print('Move Backward Timeout', 'E')
+                break
+            
+        return ret    
+
+    def MoveRobotLinearAxisForward(self):
+        "moves robot to forward position"
+        
+        # set output to move backward
+        #self.SetOutput(1, '00')
+        
+        ret = 0
+        t_start = time.time()
+        timeout = self.TIMEOUT_CYLINDER
+        while not ret == 1:  
+            # stage is moving
+            time.sleep(1)  # 
+            
+            # check back poition gain
+            ret     = self.GetRobotLinearAxisPosition()
+            
+            if (time.time() - t_start) > timeout:
+                self.Print('Move Backward Timeout', 'E')
+                break
+            
+        return ret          
+            
+    def MoveRobotLinearAxisToHomePosition(self):
+        "linear axis to home position"
+        
+        ret     = self.MoveRobotLinearAxisBackward()
+        if ret != 2:
+            self.Print('Timeout  - can not reach linear axis home position','E')
+            
+    def GetTestCellDoorForwardPosition(self):
+        "reads sensor forward position of the door"
+        
+        return True
+        
+    def GetTestCellDoorBackwardPosition(self):
+        "reads sensor backward position of the door"  
+        
+        return True            
+            
+    def GetTestCellDoorSensor(self):
+        """ 
+        door position piston
+        Returns:
+            ret : 0 - not defined, 1 - closed, 2 - open
+        
+        """
+        
+        ret = 0
+        if self.GetTestCellDoorForwardPosition():
+            ret = 1
+        elif self.GetTestCellDoorBackwardPosition():
+            ret = 2
+        
+        return ret        
+            
+    def CloseTestCellDoor(self):
+        "closes the door of the cell"
+        
+        # set output to move forward
+        #self.SetOutput(1, '00')
+        
+        ret = 0
+        t_start = time.time()
+        timeout = self.TIMEOUT_CYLINDER
+        while not ret == 2:  
+            # stage is moving
+            time.sleep(1)  # 
+            
+            # check back poition gain
+            ret     = self.GetTestCellDoorSensor()
+            
+            if (time.time() - t_start) > timeout:
+                self.Print('Test Cell Door Timeout', 'E')
+                break
+            
+        return ret  
+
+    def OpenTestCellDoor(self):
+        # opens the door of the cell
+        self.Print('Open Door ...')
+        
+        # set output to move backward
+        #self.SetOutput(1, '00')
+        
+        ret = 0
+        t_start = time.time()
+        timeout = self.TIMEOUT_CYLINDER
+        while not ret == 1:  
+            # stage is moving
+            time.sleep(1)  # 
+            
+            # check back poition gain
+            ret     = self.GetTestCellDoorSensor()
+            
+            if (time.time() - t_start) > timeout:
+                self.Print('Test Cell Door Timeout', 'E')
+                break
+            
+        return ret       
+            
+    def Home(self):
+        "defines home position for differnet devices"
+        
+        # robot is in home position already
+        
+        # linear stage position
+        ret = self.MoveRobotLinearAxisToHomePosition()
+        if not ret:
+            return ret
+        
+        # table
+        ret = self.MoveTableToHomePosition()
+        if not ret:
+            return ret        
+        
+        # door
+        ret = self.CloseTestCellDoor()
+        if not ret:
+            return ret
+        
+        # counter of the index
+        self.uut_counter = 1
+        
+        return ret
              
 
-    def Print(self, txt='',level='I'):
+    def Print(self, ptxt='',level='I'):
         
         if level == 'I':
-            ptxt = 'I: IOC: %s' % txt
+            #ptxt = 'I: IOC: %s' % txt
             logger.info(ptxt)
         if level == 'W':
-            ptxt = 'W: IOC: %s' % txt
+            #ptxt = 'W: IOC: %s' % txt
             logger.warning(ptxt)
         if level == 'E':
-            ptxt = 'E: IOC: %s' % txt
+            #ptxt = 'E: IOC: %s' % txt
             logger.error(ptxt)
             
         print(ptxt)
             
         
     def Test(self):
-        self.ConnectToController()
+        self.Connect()
         
         # turn on relay 1 with no delay
         self.rStatus = self.SetOutput(1, '00')

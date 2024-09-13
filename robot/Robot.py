@@ -14,6 +14,7 @@ Usage:
 -----------------------------
  Ver    Date     Who    Descr
 -----------------------------
+0202    12.09.24 UD     IO interface
 0201    23.08.24 UD     New robot interface
 0101    11.06.24 UD     Created
 -----------------------------
@@ -56,7 +57,13 @@ logger      = logging.getLogger("robot")
 
 #log.basicConfig(level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)6s:%(lineno)3d} %(levelname)s - %(message)s',  datefmt="%M:%S")
 #log.basicConfig(stream=sys.stdout, level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)s:%03(lineno)d} %(levelname)s - %(message)s',  datefmt="%M:%S")
+formatter   = logging.Formatter('[%(asctime)s] - [%(filename)12s:%(lineno)3d] - %(levelname)s - %(message)s')
+logger.setLevel("DEBUG")
 
+console_handler = logging.StreamHandler()
+console_handler.setLevel("DEBUG")
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
 
 #class CustomFormatter(logging.Formatter):
 #
@@ -151,6 +158,8 @@ class Robot:
         
         self.is_alive           = False
         
+        #self.ROBOT_HOME_POSE    = []
+        
         for function in self.__functions:
             setattr(
                 self,
@@ -170,7 +179,11 @@ class Robot:
         self.logger.info(f"Robot initialized with following functions {self.__functions} and robot version {self.version}")
         if self.version != VERSION:
             self.logger.warning(f"Current client version is not compatiable with the version of the server running on the robot. Some of the functionlities specified in the documentation might not work in the intended way. Please upgrade to the correct version .Client Version : {VERSION},Server Version : {self.version}")
-        self.start_diagnostics_monitor()
+        
+        #self.start_diagnostics_monitor()
+        
+        self.tprint('Collision is disabled')
+        self.disable_collision_detection()
         
         self.tprint('Created')
         
@@ -342,32 +355,51 @@ class Robot:
 #        self.r.move_linear_from_current_position(Position, speed = l_Speed, accelearation = l_Acc)
 #        self.tprint("move_linear")
         
-    def get_io_status(self, InputName = "D0_1"):
+    def get_digital_io_input(self, InputName = 1):
         #print(r.io("get",io_name="DO_1"))
-        self.InputValue = self.r.io("get",io_name = str(InputName))
+        #self.InputValue = self.io("get",io_name = str(InputName))
+        val = self.get_digital_input(InputName)
         
-        if self.InputValue == 0:
-            val = False
-        else:
-            val = True
-            
+#        if self.InputValue == 0:
+#            val = False
+#        else:
+#            val = True
+        self.tprint(val)     
         return val
     
-    def set_io_value(self, OutputName, Action = 'on'):
-        # r.io("set",io_name="DO_1",target_value=True)
+    def get_digital_io_output(self, InputName = 1):
+        #print(r.io("get",io_name="DO_1"))
+        #self.InputValue = self.io("get",io_name = str(InputName))
+        val = self.get_digital_output(InputName)
         
-        if Action == 'on':
-            self.r.io("set",io_name = str(OutputName),target_value = True)
-        else:
-            self.r.io("set",io_name = str(OutputName),target_value = False)
+#        if self.InputValue == 0:
+#            val = False
+#        else:
+#            val = True
+        self.tprint(val)    
+        return val    
+    
+    def set_digital_io_output(self, OutputName = 1, Action = True):
+        # r.io("set",io_name="DO_1",target_value=True)
+        if isinstance(Action,str):
+            Action = True if Action == 'on' else False
+            
+        io_set = self.set_digital_output(1,Action)
+        self.tprint(io_set)
+
+            
+    def get_analog_io(self, input_id = 1):
+        "analog io"
+        io_get = self.get_analog_input(input_id)
+        self.tprint(io_get)
             
     def set_gripper(self, Action):
         # r.gripper("close")
-        self.r.gripper(str(Action))
+        self.gripper(str(Action))
         
     def get_gripper(self):
         "gripper status"
-        ret = self.r.gripper()
+        ret = self.gripper()
         return ret
         
     def get_point_pose(self, g_Type = "Position", g_PosName = "Home"):
@@ -444,19 +476,139 @@ class Robot:
         "check default position"
         pose = self.get_pose_euler()
         return True
+
+    def GetHomePosition(self):
+        "get default position using home point"
+        pose = self.get_point_pose(g_Type = "Position", g_PosName = "Home")
+        return pose  
+    
+    def GetCurrentPosition(self):
+        "get current position "
+        pose = self.get_current_pose()
+        return pose       
+
+    def CheckHomePosition(self):
+        "check the home position"
+        pose_home = self.GetHomePosition()
+        pose_curr = self.GetCurrentPosition()
+        
+        ret = np.all(pose_home == pose_curr)
+        return ret
+    
+    def CheckAirCution(self):
+        "air cution"
+        #self.set_gripper('open')
+        ret = True 
+        return ret 
+    
+    def CheckPushCylinder(self):
+        "push cylinder"
+        #self.set_gripper('open')
+        ret = True 
+        return ret     
+    
+    def CheckGripperOpen(self):
+        "is gripper open"
+        ret = self.CheckAirCution()
+        ret = self.CheckPushCylinder() and ret
+        
+        self.set_gripper('open')
+        
+        return ret
         
 
-    def GetZamaOut(self):
-        "compatability"
+    def PickTestConnector(self):
+        "picking test connector"
         ret = True
-        self.Print('GetZamaOut')  
+        self.Print('Pick Test Connector')  
         return ret
+    
+    def PutTestConnector(self):
+        "put test connector"
+        ret = True
+        self.Print('Put Test Connector')  
+        return ret        
+    
+    def PlugTestConnectorInUUT(self):
+        "plug test connector"
+        ret = True
+        self.Print('Plug Test Connector')  
+        
+        # move
+        
+        # release gripper
+        
+        
+        return ret 
+    
+    def UnPlugTestConnectorInUUT(self):
+        "unplug"
+        ret = True
+        self.Print('UnPlug Test Connector')  
+        
+        # move
+        
+        # close gripper
+                
+        return ret     
+    
 
     def GetUUTOut(self):
         "compatability"
         ret = True
         self.Print('GetUUTOut')  
-        return ret        
+        return ret 
+    
+    def PutUUTOnTable(self):
+        "put UUT back to table"
+        pose = self.get_point_pose(g_Type = "Position", g_PosName = "Home")
+        self.set_pose(pose)
+        
+        # open griper
+        
+        # close gripper
+        
+        return True     
+        
+    def PickUUTFromTable(self):
+        "pick UUT to be tested"
+        pose = self.get_point_pose(g_Type = "Position", g_PosName = "Home")
+        self.set_pose(pose)
+        
+        # open griper
+        
+        # close gripper
+        
+        return True         
+    
+    def LoadUUTToTester(self):
+        "loads UUT to tester"
+        pose = self.get_point_pose(g_Type = "Position", g_PosName = "Home")
+        self.set_pose(pose)
+        
+        # lock UUT on tester
+        
+        return True  
+
+    
+
+    def Home(self):
+        "set robot in home position"
+        
+        # check grpper holds something
+        
+        # if gripper closed
+        # move robot to the table to return the part
+        # open gripper
+        
+        # if gripper is open
+        
+        # move robot to predefined pose
+        pose = self.GetHomePosition()
+        self.set_pose(pose)
+        #self.ROBOT_HOME_POSE
+        
+        return True
         
         
     def Print(self, txt='',level='I'):
@@ -483,6 +635,8 @@ class TestRobotAPI: #unittest.TestCase
         
         self.r.robot_info() 
         self.r.list_methods()
+        d = self.r.get_diagnostics()
+        print(d)
         
         # need one argument
         #prop = self.r.get_doc()
@@ -565,11 +719,35 @@ class TestRobotAPI: #unittest.TestCase
         self.r.power_on()
         self.r.switch_to_automatic_mode()
         
-        self.set_gripper('open')
+        gr   = self.r.get_gripper()
+        print(gr)
+        
+        self.r.set_gripper('open')
         time.sleep(1)
-        self.set_gripper('close')
+        self.r.set_gripper('close')
         time.sleep(1)
-        self.set_gripper('open')
+        self.r.set_gripper('open')
+        
+    def TestIO(self):
+        #self.r.robot_info() 
+        #self.r.list_methods()
+        self.r.power_on()
+        self.r.switch_to_automatic_mode()
+        
+        print('Digital')
+        gr   = self.r.get_digital_io_input()
+        print(gr)
+        gr   = self.r.get_digital_io_input()
+        print(gr)
+        
+        self.r.set_digital_io_output(1,'on')
+        time.sleep(1)
+        self.r.set_digital_io_output(1,'off')
+        
+        print('Analog')
+        gr   = self.r.get_analog_io()
+        print(gr)
+  
 
 #%%
 if __name__ == '__main__':
@@ -577,8 +755,9 @@ if __name__ == '__main__':
     #from Robot import TestRobotAPI
     tapi = TestRobotAPI()
     #tapi.TestInfo()    # ok
-    tapi.TestMotion() # ok
+    #tapi.TestMotion() # ok
     #tapi.TestCommands() # ok
     #tapi.TestEulerMotion() # ok
     #tapi.TestSwitchTool() # 
     #tapi.TestGripper() # 
+    tapi.TestIO() # 

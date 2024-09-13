@@ -39,7 +39,7 @@ if hasattr(sys, 'frozen') and hasattr(sys, '_MEIPASS'):
     pass
     #import MonitorGUI
 
-from gui.MonitorGUI import MainGUI
+#from gui.MonitorGUI import MainGUI
 from control.MainProgram import MainProgram
 #from gui.ConfigManager import ConfigManager
 #from gui.DisplayManager  import DisplayManager
@@ -81,18 +81,18 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     if args.version:
-        print("{0} {1}".format('RobotManager', __version__))
+        print("{0} {1}".format('MainApp', __version__))
 
-    if args.start:
-        #f start to run automatically
-        MainGUI(__version__, module_dict)
-    
-
-    if args.gui:
-        #from gui import RobotAIGUI
-        MainGUI(__version__, module_dict)
-    else:
-        MainProgram(__version__, module_dict)
+#    if args.start:
+#        #f start to run automatically
+#        MainGUI(__version__, module_dict)
+#    
+#
+#    if args.gui:
+#        #from gui import RobotAIGUI
+#        MainGUI(__version__, module_dict)
+#    else:
+    MainProgram(__version__, module_dict)
 # #        from gui import RobotAIAPI
 #             RobotAIAPI.AppServer(__version__, module_dict)
     
