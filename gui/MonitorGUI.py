@@ -35,7 +35,7 @@ iconFilePath  =  '.\\gui\\logo.ico' #os.path.join(base_path, '\logo.ico')
 #iconFilePath  =  r'C:\robotai\SW\RobotManager\gui\logo.ico' #os.path.join(base_path, '.\\gui\\logo.ico')
 
 #import os
-import sys
+#import sys
 #sys.path.insert(1, r'D:\RobotAI\Customers\VineRoboticq\Code\RobotManager\robot')
 #sys.path.insert(1, r'D:\RobotAI\Customers\VineRoboticq\Code\RobotManager\vision')
 
