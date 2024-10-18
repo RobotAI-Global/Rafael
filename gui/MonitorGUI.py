@@ -13,11 +13,12 @@ Install:
 -----------------------------
  Ver    Date     Who    Descr
 -----------------------------
+0201    18.10.24 UD     Merging SaarSM
 0101    11.06.24 UD     Created
 -----------------------------
 
 """
-gui_version   = '0101'
+gui_version   = '0201'
 
 import os
 #import tkinter as tk
@@ -84,9 +85,10 @@ style.use("dark_background")
 from gui.ConfigManager import ConfigManager
 from gui.DisplayManager  import DisplayManager
 from robot.Robot import Robot as RobotManager
-from disc.ControllerHHC import IOController
+from disc.ControllerIO import ControllerIO 
 from gui.TkinkerJson  import JsonEditor
 from gui.PoseGUI import PoseGUI
+from gui.Logger import logger
 
 #except Exception as e:
 #    from ConfigManager import ConfigManager
@@ -145,7 +147,8 @@ class MonitorGUI:
         #self.port_robot = 5033
         #self.rbm        = None  # robot manager
         self.rbm        = RobotManager(parent = self) #ip = self.ip_robot, port = self.port_robot) #RobotServerThread(host = self.ip, port = self.port,  debug=self.debugOn, config = self.cfg)
-        self.ioc        = IOController(parent = self)
+        self.ioc        = ControllerIO(parent = self)
+        self.dsp        = DisplayManager(self.cfg)
 
         self.robot_speed = 100  # some strnage numbers
         self.robot_pose  = np.zeros((1,6))
@@ -172,7 +175,7 @@ class MonitorGUI:
 #        if self.cfg is None:
 #            self.cfg = ConfigManager()
             
-        self.dsp       = DisplayManager(self.cfg)
+        
 
 
         # ugly but simple
@@ -659,7 +662,7 @@ class MonitorGUI:
         # maybe already running
         if self.ioc is None:
             # runs Robot server and Multi Object Detection
-            self.ioc    = IOController(self) #host = self.ip_vision, port = self.port_vision, debug = self.debugOn, config=self.cfg) #RobotServerThread(host = self.ip, port = self.port,  debug=self.debugOn, config = self.cfg)
+            self.ioc    = ControllerIO(self) #host = self.ip_vision, port = self.port_vision, debug = self.debugOn, config=self.cfg) #RobotServerThread(host = self.ip, port = self.port,  debug=self.debugOn, config = self.cfg)
             self.ioc.ConnectToController()
         elif self.ioc.IsConnected():   
             self.tprint('IO Connection is alive')
@@ -1264,10 +1267,10 @@ class MonitorGUI:
         
         # make DisplayManager draw the scene
         self.line.remove()
-        self.dsp.TestInitShowCameraGripperPoints(self.ax, self.fig)
-        #self.dsp.TestRenderaGripperHangersSeparators(self.ax)
+        self.dsp.TestInitShowCameraBaseTool(self.ax, self.fig)
+
         #self.commServer()
-        self.startAuto()
+        #self.startAuto()
 
     def startAuto(self):
         # start auto connections
@@ -1777,15 +1780,15 @@ class MonitorGUI:
         if level == 'I':
             ptxt = 'I: GUI: %s' % txt
             bckg = "White"
-            log.info(ptxt)
+            logger.info(ptxt)
         if level == 'W':
             ptxt = 'W: GUI: %s' % txt
             bckg = "Yellow"
-            log.warning(ptxt)
+            logger.warning(ptxt)
         if level == 'E':
             ptxt = 'E: GUI: %s' % txt
             bckg = "Red"
-            log.error(ptxt)
+            logger.error(ptxt)
             
         #print(ptxt)    
 
@@ -1806,8 +1809,8 @@ def MainGUI(version = '0000', module_dict = {}):
     
     # logging.basicConfig(handlers=[RotatingFileHandler('./file.log', maxBytes=50000000, backupCount=10)],
     #                     level=logging.INFO, format="%(asctime)s %(levelname)-8s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
-    # # log a message
-    # logging.info('====== Starting up the program %s =======' % version)
+    # log a message
+    logger.info('====== Starting up the program %s =======' % version)
     # do not show the logging on the console
     #logging.propagate = False
     
@@ -1815,7 +1818,7 @@ def MainGUI(version = '0000', module_dict = {}):
 
     #import sys
     
-    log.basicConfig(level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)6s:%(lineno)3d} %(levelname)s - %(message)s',  datefmt="%M:%S")
+    #log.basicConfig(level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)6s:%(lineno)3d} %(levelname)s - %(message)s',  datefmt="%M:%S")
 
     
 
@@ -1882,7 +1885,7 @@ def MainGUI(version = '0000', module_dict = {}):
     win.mainloop()
     
     #gui.finish()
-    log.shutdown()
+    #logger.shutdown()
 # --------------------------
 if __name__ == '__main__':
     MainGUI()

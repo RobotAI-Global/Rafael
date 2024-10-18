@@ -65,6 +65,7 @@ import unittest
 import logging
 logger                  = logging.getLogger("robotai")
 
+
 #%% Help functions
 def inverse_homogeneoux_matrix(M):
     R = M[0:3, 0:3]
@@ -827,7 +828,7 @@ class DisplayManager:
         
         self.object_list_current = []
         
-        self.GetParamsFromConfigFile()
+        #self.GetParamsFromConfigFile()
         
         return True
         
@@ -1500,7 +1501,7 @@ class DisplayManager:
             ptxt = 'E: DM: %s' % txt
             logger.error(ptxt)  
            
-        print(ptxt)
+        #print(ptxt)
 
     def TestScenePose(self, cfg):
         #    

@@ -41,21 +41,22 @@ from threading import Thread
 
 #import os
 #%% Logger
-import logging
-logger      = logging.getLogger("robot")
-#formatter   = logging.Formatter('[%(asctime)s.%(msecs)03d] {%(filename)6s:%(lineno)3d} %(levelname)s - %(message)s', datefmt="%M:%S", style="{")
-formatter   = logging.Formatter('[%(asctime)s] - [%(filename)12s:%(lineno)3d] - %(levelname)s - %(message)s')
-logger.setLevel("DEBUG")
-
-console_handler = logging.StreamHandler()
-console_handler.setLevel("DEBUG")
-console_handler.setFormatter(formatter)
-logger.addHandler(console_handler)
-
-file_handler = logging.FileHandler("main_app.log", mode="a", encoding="utf-8")
-file_handler.setLevel("WARNING")
-file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
+from gui.Logger import logger
+#import logging
+#logger      = logging.getLogger("robot")
+##formatter   = logging.Formatter('[%(asctime)s.%(msecs)03d] {%(filename)6s:%(lineno)3d} %(levelname)s - %(message)s', datefmt="%M:%S", style="{")
+#formatter   = logging.Formatter('[%(asctime)s] - [%(filename)12s:%(lineno)3d] - %(levelname)s - %(message)s')
+#logger.setLevel("DEBUG")
+#
+#console_handler = logging.StreamHandler()
+#console_handler.setLevel("DEBUG")
+#console_handler.setFormatter(formatter)
+#logger.addHandler(console_handler)
+#
+#file_handler = logging.FileHandler("main_app.log", mode="a", encoding="utf-8")
+#file_handler.setLevel("WARNING")
+#file_handler.setFormatter(formatter)
+#logger.addHandler(file_handler)
 
 #log.basicConfig(level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)6s:%(lineno)3d} %(levelname)s - %(message)s',  datefmt="%M:%S")
 

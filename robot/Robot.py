@@ -158,6 +158,11 @@ class Robot:
         
         self.is_alive           = False
         
+        self.tprint('Robot IF is created')
+        
+    def connect(self):
+        "start communication"
+        
         #self.ROBOT_HOME_POSE    = []
         
         for function in self.__functions:
@@ -185,7 +190,7 @@ class Robot:
         self.tprint('Collision is disabled')
         self.disable_collision_detection()
         
-        self.tprint('Created')
+        self.tprint('Connetcion Created')
         
     def help(self, name):
         print(self.get_doc(name))
