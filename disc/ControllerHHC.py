@@ -14,6 +14,7 @@ Usage:
 -----------------------------
  Ver    Date     Who    Descr
 -----------------------------
+0301    11.10.24 UD     2 x IO interface. New IP
 0202    12.09.24 UD     IO interface
 0101    11.08.24 UD     Created
 -----------------------------
@@ -31,12 +32,12 @@ logger      = logging.getLogger("robot")
 
 #%%
 class IOController:
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, host = '192.168.2.106', port = 5000):
         #super().__init__()
         self.parent         = parent
         # Server information
-        self.ServerIp       = '192.168.0.105'  # IP address of the controller
-        self.ServerPort     = 5000  # port number of the controller  
+        self.ServerIp       = host  # IP address of the controller
+        self.ServerPort     = port  # port number of the controller  
         self.client_socket  = None
         self.ts             = None   # thread
         self.stopTask       = False

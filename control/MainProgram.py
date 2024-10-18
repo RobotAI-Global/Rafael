@@ -69,7 +69,7 @@ from control.ConfigManager import ConfigManager
 from robot.Robot import Robot as RobotManager
 from host.ComServer  import ComServer as HostManager
 #from control.StateMachine import StateMachine
-from disc.ControllerHHC import IOController
+from disc.ControllerIO import ControllerIO
 
 #except Exception as e:
 #    from ConfigManager import ConfigManager
@@ -149,7 +149,7 @@ class MainProgram:
         self.host       = HostManager(parent = self)    
         
         # connectio to IO
-        self.ioc        = IOController(parent = self)
+        self.ioc        = ControllerIO(parent = self)
         
         self.Print('Created')
         

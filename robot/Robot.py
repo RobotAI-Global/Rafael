@@ -755,9 +755,9 @@ if __name__ == '__main__':
     #from Robot import TestRobotAPI
     tapi = TestRobotAPI()
     #tapi.TestInfo()    # ok
-    #tapi.TestMotion() # ok
+    tapi.TestMotion() # ok
     #tapi.TestCommands() # ok
     #tapi.TestEulerMotion() # ok
     #tapi.TestSwitchTool() # 
     #tapi.TestGripper() # 
-    tapi.TestIO() # 
+    #tapi.TestIO() # 
