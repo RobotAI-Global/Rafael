@@ -1,6 +1,6 @@
 """
 
-RobotAI : IO Interface
+RobotAI : IO Controller - uses two HHC cards to control all the IO
 
 Login:
      
@@ -25,174 +25,98 @@ import socket
 #from queue import Queue
 from threading import Thread
 import time
+from disc.ControllerHHC import IOController
 
 #%% Logger
 import logging
 logger      = logging.getLogger("robot")
 
 #%%
-class IOController:
-    def __init__(self, parent=None, host = '192.168.2.106', port = 5000):
-        #super().__init__()
+class ControllerIO:
+    def __init__(self, parent=None):
+
         self.parent         = parent
-        # Server information
-        self.ServerIp       = host  # IP address of the controller
-        self.ServerPort     = port  # port number of the controller  
-        self.client_socket  = None
-        self.ts             = None   # thread
-        self.stopTask       = False
+
+        # connectio to IO
+        self.ioc1           = IOController(self, '192.168.2.105', 5000)
+        
+        # connectio to IO
+        self.ioc2           = IOController(self, '192.168.2.106', 5000)        
         
         # time out variable
-        self.TIMEOUT_CYLINDER = 10  # sec
-        
-        # count of stations : 1 upto 12 - total 12, 0 - undefined
-        self.uut_counter   = 0
+        self.TIMEOUT_CYLINDER = 10  # sec        
         
     def Init(self):
-        
-        self.uut_counter   = 0
+        ""
+        self.Home()
         self.Print('Init')
-        
         
     def Connect(self):
         # Create a TCP/IP socket
-        self.client_socket  = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        ret1 = self.ioc1.Connect()
+        if ret1:
+            self.Print('Connected to the controller 1.')
+        else:
+            self.Print('Connected to the controller 1.','W')
+            
+        ret2 = self.ioc2.Connect()
+        if ret2:
+            self.Print('Connected to the controller 2.')
+        else:
+            self.Print('Connected to the controller 2.','W')        
+            
+        self.Print('Connected to the controllers.')
         
-        # connect to the server, if result = 0 connection is OK
-        result              = self.client_socket.connect((self.ServerIp, self.ServerPort))
-        self.Print('Connected to the controller.')
-        
-        return result
+        return ret1 and ret2
     
     def IsConnected(self):
         # chekc if the socket is open
-        ret = False
-        if self.client_socket is None:
-            return ret
-        return True
-    
+
+        ret1 = self.ioc1.IsConnected() 
+        ret2 = self.ioc2.IsConnected() 
+        return ret1 and ret2  
+     
     def IsHome(self):
-        # chekc if the IOs are in correct position
-        ret = True
-        return ret    
+        "check if the controller in the home position"
+        ret1 = self.ioc1.IsHome()    
+        ret2 = self.ioc2.IsHome()          
+        return ret1 and ret2          
         
-    def SendDataToController(self, cCommand):
-        # Send data to the server       
-        self.client_socket.sendall(cCommand.encode())
-        self.Print('Message sent to the controller:', cCommand)        
-    
-    def ReciveDataFromController(self, cCommand, cNumber):
-        # Receive data from the server
-        self.data = self.client_socket.recv(1024).decode()
-        self.Print('Message received from the controller:', self.data)       
 
-        if cCommand == 'input':
-            # Take only the data from the return string 'input00000000'
-            # The order of the inputs is: 76543210
-            self.InputStatus = self.data.replace('input', '') 
-            
-            # Reverse the order of a string to get the order of inputs: 01234567
-            self.ReversedInputStatus = self.InputStatus[::-1]
-            
-            # Get the input status
-            self.iStatus = self.ReversedInputStatus[cNumber-1] 
-            
-            if self.iStatus == '1':
-                self.bStatus = 'on'                
-            elif self.iStatus == '0':
-                self.bStatus = 'off'                            
+    def Reset(self):
+        self.Print('Reset')    
+        #self.ioc1.Start()    
+        #self.ioc2.Start()          
 
-        elif cCommand == 'output':
-            # remove all numbers from a string and leve only alpha
-            self.bStatus = ''.join(char for char in self.data if char.isalpha())                                                
-            
-        return str(self.bStatus)
-    
-    def GetInputStatus(self, iNumber):
-        # read all Inputs
-        self.SendDataToController('input')
-        # get input status
-        self.rValue = self.ReciveDataFromController('input', iNumber)
-        self.Print('GetInputStatus : %s' %str(iNumber))
-        return self.rValue
-    
-    def SetOutput(self, iNumber, sDelay):
-        self.sCommand = 'on'
-        self.OutputNumber = str(iNumber)
-        
-        # Sample Commands
-        # turn on relay 1
-        # self.SendDataToController('on1')
-        # turn on relay 1 with delay of 5 sec
-        # self.SendDataToController('on1:05')        
-        # turn on relay for 5sec (up to 99sec)
-        
-        if sDelay == '00' :            
-            self.sOutput = self.sCommand + self.OutputNumber
-        else:
-            self.sOutput = self.sCommand + self.OutputNumber + ':' + str(sDelay)
-            
-        # turn on relay 
-        self.SendDataToController(self.sOutput) 
-        # get relay status
-        self.rValue = self.ReciveDataFromController('output', iNumber)
-        
-        self.Print('SetOutput : %s' %str(iNumber))
-        return self.rValue
-    
-    def ResetOutput(self, iNumber):
-        self.sCommand = 'off'
-        self.OutputNumber = str(iNumber)
-        
-        # Sample Commands
-        # turn off relay 1
-        # self.SendDataToController('off1')
-                         
-        self.sOutput = self.sCommand + self.OutputNumber
-                    
-        # turn on relay 
-        self.SendDataToController(self.sOutput) 
-        # get relay status
-        self.rValue = self.ReciveDataFromController('output', iNumber)
-        
-        self.Print('ResetOutput : %s' %str(iNumber))
-        return self.rValue
-        
-    def CloseConnectionWithController(self):
-        # close the connection
-        self.client_socket.close()
-        self.Print('Connection with the controller closed.')
-        
-    def ControllerThread(self):  
-        "main thread"        
-        while not self.stopTask:
-            try:
-                self.Connect()    
-                print('Server is running')
-                while not self.stopTask:
-                    
-                    self.ReciveData()
-                    time.sleep(0.5)
-                    self.SendData()
-                    
-            except Exception as e:
-                print(e)  
-                
-    def RunThread(self):
-        "running in the thread"
-        self.ts = Thread(target = self.ControllerThread)
-        self.ts.start()
-        #self.ts.join()    
-        return True 
-    
     def Start(self):
         self.Print('Start')    
-        self.RunThread()
+        self.ioc1.Start()    
+        self.ioc2.Start()  
         
     def Stop(self):
         self.Print('Stop') 
-        self.stopTask = True
-        self.ts.join()          
+        self.ioc1.Stop()    
+        self.ioc2.Stop()  
+        
+    def Disconnect(self):
+        # disonnecteing
+        self.Close()   
+        
+    def Close(self):
+        # close the connection
+        self.ioc1.CloseConnectionWithController()
+        self.ioc2.CloseConnectionWithController()
+        
+        self.Print('Connection with all controllers is closed.')        
+    
+    def Home(self):
+        "defines home position for differnet devices"
+        
+        # robot is in home position already
+        self.ioc1.Home()    
+        self.ioc2.Home()  
+        
+        return ret
     
     ## ------------------------------------  
     # -- Table Control ---
@@ -221,8 +145,6 @@ class IOController:
         # two stations
         self.MoveTableIndex()
         self.MoveTableIndex()
-  
-        self.uut_counter += increment 
 
         return True
     
@@ -230,30 +152,19 @@ class IOController:
     # -- Tester Control ---
     ## ------------------------------------        
 
-
-    
     def BuhnaIsOpen(self):
         # buhna is open
         self.Print('Open Buhna ...')
         return True     
-    
-    
-    
 
     ## ------------------------------------  
     # -- IO Control ---
     ## ------------------------------------ 
 
-            
     def Status(self):
         self.GetInputStatus()
         self.tprint(f'Checking status')
         
-    def Reset(self):
-        # get specific bit info
-        addr = 0
-        self.ResetOutput(addr)
-        self.Print(f'IO reset {addr}') 
         
     def GetInfo(self):
         # get specific bit info
@@ -262,8 +173,8 @@ class IOController:
         
     def SetInfo(self):
         # get specific bit info  
-        addr = 0
-        val = 1
+        addr    = 0
+        val     = 1
         self.ioc.SetOutput(addr,val)
         self.Print(f'IO sending value {val} to {addr}')
         
@@ -301,11 +212,7 @@ class IOController:
         
         ret    = ret1 and ret2
         return ret    
-        
-    def Disconnect(self):
-        # disonnecteing
-        self.CloseConnectionWithController()  
-        
+
         
     def LinearAxisForwardPosition(self):
         "reads sensor forward position of the linear state"
@@ -335,8 +242,6 @@ class IOController:
         
         return ret
         
-        
-        
     def CheckTableInHomePosition(self):
         "return true only when in IO sens the home position : Table Home Position Sensor"
         
@@ -345,6 +250,8 @@ class IOController:
     
     def SetTableIndex(self):
         "moves the table for one index"
+        
+        return True
     
     def WaitForTableIndexDone(self):
         "the table has reached index poxition and finished to move"
@@ -489,30 +396,7 @@ class IOController:
             
         return ret       
             
-    def Home(self):
-        "defines home position for differnet devices"
-        
-        # robot is in home position already
-        
-        # linear stage position
-        ret = self.MoveRobotLinearAxisToHomePosition()
-        if not ret:
-            return ret
-        
-        # table
-        ret = self.MoveTableToHomePosition()
-        if not ret:
-            return ret        
-        
-        # door
-        ret = self.CloseTestCellDoor()
-        if not ret:
-            return ret
-        
-        # counter of the index
-        self.uut_counter = 1
-        
-        return ret
+
              
 
     def Print(self, ptxt='',level='I'):
@@ -534,25 +418,13 @@ class IOController:
         self.Connect()
         
         # turn on relay 1 with no delay
-        self.rStatus = self.SetOutput(1, '00')
-        self.Print('output 1:', self.rStatus)
+        self.ioc1.Test()    
+        self.ioc2.Test()  
         
-        # turn off relay 1 with no delay
-        self.rStatus = self.ResetOutput(1)
-        self.Print('output 1:', self.rStatus)
-        
-        # turn on relay 1 with delay of 5 sec
-        self.rStatus = self.SetOutput(1, '05')
-        self.Print('output 1:', self.rStatus)
-        
-        # get input 1 
-        self.rStatus = self.GetInputStatus(1)
-        self.Print('input 1:', self.rStatus)             
-        
-        self.CloseConnectionWithController()        
+        self.Close()        
         
 if __name__ == '__main__':
-    c = IOController()
+    c = ControllerIO()
     c.Test()
         
         

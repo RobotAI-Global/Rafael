@@ -1,5 +1,5 @@
 # RobotManager
-manager of the robot for Rafael System
+Manager of the robot for Rafael System
 
 # creating virtual env
 c:\python -m venv C:\robotai\SW\PyEnv\RobotMngr

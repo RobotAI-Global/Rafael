@@ -12,22 +12,6 @@ import logging as log
 
 log.basicConfig(level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s',  datefmt="%M:%S")
 
-##%% Woring
-#import logging 
-#
-#log = logging.getLogger(__name__)
-##
-#log.setLevel(logging.DEBUG)
-#ch = logging.StreamHandler()
-#ch.setLevel(logging.DEBUG)
-## create formatter
-#formatter = logging.Formatter('[%(asctime)s.%(msecs)03d] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s',  datefmt="%M:%S")
-## add formatter to ch
-#ch.setFormatter(formatter)
-#
-## add ch to logger
-#log.addHandler(ch)
-##
 
 #%% 
 # StateMachine/State.py
@@ -49,10 +33,50 @@ class StateMachine:
         
         self.currentState = STATE.INIT
         #self.currentState.run()
-        self.tprint('started')
+        self.Print('started')
         
-    def tprint(self, txt = ''):
-        #print(txt)
+    def Init(self):
+        "initial state"
+        self.currentState = STATE.INIT
+        self.Print('Init')
+        
+    def StateSpecialMessage(self, msg_in, curr_state):
+        "special messages"
+        msg_out     = msg_in
+        next_state  = curr_state
+        return msg_out, next_state
+    
+    def StateInit(self, msg_in, curr_state):
+        "do onthing"
+        msg_out     = msg_in
+        next_state  = curr_state
+        return msg_out, next_state    
+        
+    def Transition(self, msg_in):
+        "transition to a different state"
+        curr_state = self.currentState
+        next_state = self.currentState
+
+        
+        # deal with special messages
+        msg_out, curr_state = self.StateSpecialMessage(msg_in, curr_state)
+        
+        # deal with messages per state
+        if curr_state == STATE.INIT:
+            msg_out, next_state = self.StateInit(msg_in, curr_state)
+        elif curr_state == STATE.FINISH:
+            msg_out, next_state = self.StateFinish(msg_in, curr_state)
+        else:
+            self.Print('Not supprted state')
+            pass
+        
+        self.Print('Transition to %s' %str(next_state))   
+        self.currentState = next_state
+        return msg_out
+        
+        
+    def Print(self, txt = ''):
+        print('I: STM: %s' %str(txt))
         #log.info(txt)
         log.info(f'{self.currentState} : {txt}')
                
