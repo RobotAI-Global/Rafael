@@ -1,5 +1,9 @@
 """
 Display Manager - shows different 3D camera/object configurations
+
+Environment:
+    Zion : dlcdev
+
 Usage : 
     from DisplayManager import DisplayManager
     c = DisplayManager()
@@ -8,7 +12,8 @@ Usage :
 -----------------------------
  Ver    Date     Who    Descr
 -----------------------------
-0401    03.10.23 UD     DisplayManager - create picture of grapes and leaves
+0308    26.09.24 UD     generating scene for Singapore
+0307    23.10.23 UD     show camera motion test
 0301    08.09.23 UD     Adding base and tool 
 0208    26.07.23 UD     object oriented 
 0102    16.06.22 UD     rvec scene rendering 
@@ -39,7 +44,11 @@ plt.style.use('dark_background')
 import matplotlib as mpl
 mpl.rcParams['toolbar'] = 'None' 
 
-from mpl_toolkits.mplot3d import Axes3D  # pylint: disable=unused-variable
+# disable vefore compile
+import mpl_toolkits
+from mpl_toolkits.mplot3d import Axes3D
+
+#from mpl_toolkits.mplot3d import Axes3D  # pylint: disable=unused-variable
 from scipy.spatial.transform import Rotation as scirot
 from scipy.linalg import expm, inv
 
@@ -53,8 +62,8 @@ except:
 #import pylab as m
 
 import unittest
-#import logging
-import logging as log
+import logging
+logger                  = logging.getLogger("robotai")
 
 #%% Help functions
 def inverse_homogeneoux_matrix(M):
@@ -86,7 +95,7 @@ def listdir(file_extension,path='.'):
    if isinstance(file_extension,str):
       file_extension=[file_extension] 
    b = []
-   for j in range(m.size(file_extension)):
+   for j in range(np.size(file_extension)):
        a = [i for i in os.listdir(path) if (file_extension[j].lower() in i.lower())] 
        a = [i for i in a if (file_extension[j].lower()==i[-len(file_extension[j]):].lower())]
        a = [os.path.join(path,i) for i in a if (os.path.isfile(os.path.join(path,i)))]
@@ -254,6 +263,48 @@ def MatrixToPose(Mo):
 #tvec            = M[0:3, -1]
 #M2              = fromRvecTvecToHomogenious(rvec, tvec)
 #print('Homog Error %s' %str(M - M2))
+#%% =========================
+
+def fromPoseToHomogeneousMatrix(pose):
+    
+    pose        = pose.ravel()
+    rvec        = fromEulerToRvec(pose[3:6]) 
+    #rvec        = extrinsics[idx,3:6]
+    R, _       = cv.Rodrigues(rvec)
+    Mo         = np.eye(4,4)
+    Mo[0:3,0:3] = R
+    Mo[0:3,3]   = pose[0:3]
+    return Mo
+    
+def fromHomogeneousMatrixToPose(Mo):
+    # converts 4x4 mat represenation to tvex and rvec
+    pose          = np.zeros((1,6))
+    X           = Mo
+    rvec, _     = cv.Rodrigues(X[0:3,0:3])
+    evec        = fromRvecToEuler(rvec).reshape((1,3))            
+    tvec        = X[0:3,3].reshape((1,3))
+    
+    # assign
+    pose        = np.hstack((tvec,evec))            
+    return pose
+
+def applyPoseTransform(pose0,poseT):
+    
+    M0         = fromPoseToHomogeneousMatrix(pose0)
+    MT         = fromPoseToHomogeneousMatrix(poseT)
+    M1         = MT.dot(M0)
+    pose1      = fromHomogeneousMatrixToPose(M1)
+    return pose1
+
+
+pose_in     = np.array([10,-9.3, 1, 89, -60, 120])
+M           = fromPoseToHomogeneousMatrix(pose_in)
+pose_out    = fromHomogeneousMatrixToPose(M)
+print('Error %s' %str(pose_in - pose_out))
+
+pose_tr     = np.array([-10,9.3, 0, 0, 0, 0])
+pose_out    = applyPoseTransform(pose_in, pose_tr)
+print(pose_out)
 
 #%%---------------------------------------------------------------------------------------------------------------------------------------
 # 3d Axis frame
@@ -370,7 +421,7 @@ class Gripper(Frame):
     def __init__(self):
         super().__init__()
         self.name               = 'gripper'  # H,W,Depth
-        self.params_model       = {'width':20, 'height':40,'depth':40}
+        self.params_model       = {'width':40, 'height':80,'depth':40}
         self.x_model            = self.create_model()
         self.h_model            = [None]*len(self.x_model) # assocoation to graphocs         
         
@@ -421,18 +472,18 @@ class Gripper(Frame):
 
                
 class Camera(Frame):
-    def __init__(self):
+    def __init__(self, size = (40,60,60)):
         super().__init__()
         self.name               = 'camera'  # H,W,Depth
-        self.params_model       = {'width':40, 'height':30,'depth':60}
+        self.params_model       = {'width':size[0], 'height':size[1],'depth':size[2]}
         self.x_model            = self.create_model()
         self.h_model            = [None]*len(self.x_model) # assocoation to graphocs         
         
     def create_model(self):
         
-        f_scale = self.params_model['depth']
-        width   = self.params_model['width']/2
-        height  = self.params_model['height']/2
+        f_scale             = self.params_model['depth']
+        width               = self.params_model['width']/2
+        height              = self.params_model['height']/2
         
         # draw image plane
         X_img_plane = np.ones((4,5))
@@ -473,10 +524,10 @@ class Camera(Frame):
         return outv
        
 class Board(Frame):
-    def __init__(self):
+    def __init__(self, size = (500,500)):
         super().__init__()
         self.name               = 'board'  # H,W,Depth
-        self.params_model       = {'width':90, 'height':60,'depth':1}
+        self.params_model       = {'width':size[0], 'height':size[1],'depth':1}
         self.x_model            = self.create_model()
         self.h_model            = [None]*len(self.x_model) # assocoation to graphocs         
         
@@ -500,7 +551,46 @@ class Board(Frame):
         outv            = [X_board]
          # draw board with axis
         return outv
+    
+# 3D box
+class Box3D(Frame):
+    def __init__(self, size = (200,500,300)):
+        super().__init__()
+        self.name               = 'board'  # H,W,Depth
+        self.params_model       = {'width':size[0], 'height':size[1],'depth':size[2]}
+        self.x_model            = self.create_model()
+        self.h_model            = [None]*len(self.x_model) # assocoation to graphocs         
         
+    def create_model(self):   
+        # show board
+
+        #f_scale = params_model['depth']
+        dx        = self.params_model['width']
+        dy        = self.params_model['height']
+        dz        = self.params_model['depth']
+    
+        # draw calibration board
+        X_board         = np.ones((4,14))
+        #X_board_cam = np.ones((extrinsics.shape[0],4,5))
+        X_board[0:3,0] = [0,0,0]
+        X_board[0:3,1] = [dx,0,0]
+        X_board[0:3,2] = [dx,dy,0]
+        X_board[0:3,3] = [0,dy,0]
+        X_board[0:3,4] = [0,0,0]
+        X_board[0:3,5] = [0,0,dz]
+        X_board[0:3,6] = [dx,0,dz]
+        X_board[0:3,7] = [dx,dy,dz]
+        X_board[0:3,8] = [0,dy,dz]
+        X_board[0:3,9] = [0,0,dz]
+        X_board[0:3,10] = [dx,0,dz]
+        X_board[0:3,11] = [dx,0,0]
+        X_board[0:3,12] = [0,0,0]
+        X_board[0:3,13] = [0,0,dz]
+        # output should be a list
+        outv          = [X_board]
+         # draw board with axis
+        return outv    
+    
 # polygon
 class Base(Frame):
     def __init__(self, radius = 500):
@@ -572,7 +662,7 @@ class Line(Frame):
     def __init__(self):
         super().__init__()
         self.name               = 'line'  # H,W,Depth
-        self.params_model       = {'width':0, 'height':500,'depth':5}
+        self.params_model       = {'width':0, 'height':800,'depth':5}
         self.x_model            = self.create_model()
         self.h_model            = [None]*len(self.x_model) # assocoation to graphocs         
         
@@ -652,6 +742,36 @@ class Point(Frame):
             
         return outv   
     
+    #=========================================
+    def create_object_model(self, params_model, draw_frame_axis=True):
+    #def create_object_model(self, faces, labels, draw_frame_axis=True):
+        """ Faces is a list of lists, each representing one face. The inner list is made of labels
+        Labels is a dictionary, where each key is a string of a label, and its value is its coordinate
+        square_size is from config file
+        """
+        
+        faces       = params_model['faces']
+        labels      = params_model['labels']
+        
+        # longest = max(faces, key=lambda x:len(x))
+        faces_np = [] #list of frames 
+        for idx in range(len(faces)): # for each frame
+            face_size = len(faces[idx])
+            face = np.ones((4, face_size+1)) #make an array of 4x7(or the points in the face+1)
+            faces_coords = [labels[pt] for pt in faces[idx]] #get number coordinate values for each of the faces
+            for idy in range(len(faces_coords)): #for each coordinate
+                # size = len(faces_coords[idy])
+                face[0:3, idy] = faces_coords[idy] #add the point into the array
+            face[0:3, idy+1] = faces_coords[0] #add the first coord as the last point in the array
+            faces_np.append(face)
+            
+     
+        if draw_frame_axis:
+            height      = 20
+            X_frame     = self.create_frame_model(height)
+            faces_np.extend(X_frame)
+            
+        return faces_np
 
 #%%---------------------------------------------------------------------------------------------------------------------------------------
 # Main class
@@ -707,7 +827,7 @@ class DisplayManager:
         
         self.object_list_current = []
         
-        #self.GetParamsFromConfigFile()
+        self.GetParamsFromConfigFile()
         
         return True
         
@@ -786,7 +906,7 @@ class DisplayManager:
 
         return object_grip
     
-    def GetCameraParams(self, extrinsics_cam = None):
+    def GetCameraParams(self, extrinsics_cam = None, sizeBB = (40,60,60)):
         # configures gripper positions
         params_cam          = []
        
@@ -811,13 +931,13 @@ class DisplayManager:
             
         # extrinsics to objects    
         for k in range(len(extrinsics_cam)):
-            object_cam                = Camera()
+            object_cam                = Camera(sizeBB)
             object_cam.extrinsics     = extrinsics_cam[k] 
             params_cam.append(object_cam)            
 
         return params_cam
     
-    def GetBoardParams(self, poseBB = None):
+    def GetBoardParams(self, poseBB = None, sizeBB = (200,200)):
         # configures gripper positions
         params_board = []
         
@@ -841,7 +961,7 @@ class DisplayManager:
         for k in range(len(poseBB)):
             extrinsics_cam  = np.vstack((extrinsics_cam,poseBB[k]))
             
-            object_board                = Board()
+            object_board                = Board(sizeBB)
             object_board.extrinsics     = poseBB[k] 
             params_board.append(object_board)
      
@@ -944,7 +1064,7 @@ class DisplayManager:
             params_points.append(object_point)
 
         return params_points   
-    
+       
     
     def GetLineParams(self, poseLines):
         # define params for the lines in 3D
@@ -1025,7 +1145,7 @@ class DisplayManager:
             params_separator.append(object_line)
  
         return params_separator 
-
+    
     def GetToolParams(self, extrinsics_par):
         # define params for the hangerss
         
@@ -1050,7 +1170,38 @@ class DisplayManager:
             object_line.extrinsics     = extrinsics_par[k] 
             params_t.append(object_line)
  
-        return params_t     
+        return params_t    
+    
+    def GetBoxParams(self, poseBB = None, sizeBB = [100,50,200]):
+        # configures box positions and params
+        params_base = []
+        
+        # update if provided
+        if poseBB is None:
+            self.Print('Base pose is not specified and is not updated','W')
+            return params_base
+            
+        if poseBB.shape[1]!=6:
+            self.Print('Base pose must have 6 parameters','W')
+            return params_base  
+
+        if poseBB.shape[0] < 1:
+            self.Print('Base pose must have at least one pose','W')
+            return params_base 
+        
+        self.poseBB         = poseBB
+        
+        # import argparse
+        extrinsics_cam      = np.zeros((0,6))
+        for k in range(len(poseBB)):
+            extrinsics_cam              = np.vstack((extrinsics_cam, poseBB[k]))
+            
+            object_board                = Box3D(sizeBB)
+            object_board.extrinsics     = poseBB[k] 
+            params_base.append(object_board)
+     
+        # board just for reference
+        return params_base      
 
     def ClearScene(self):
         # sets view range of the scene
@@ -1073,14 +1224,23 @@ class DisplayManager:
         Z_min = self.min_values[2]
         Z_max = self.max_values[2]
 
+        range_x = np.array([X_max-X_min]).max() * 1.2 # to get some volume 2.0
+        range_y = np.array([Y_max-Y_min]).max() * 1.2 
+        range_z = np.array([Z_max-Z_min]).max() * 1.2
         max_range = np.array([X_max-X_min, Y_max-Y_min, Z_max-Z_min]).max() / 1.9 # to get some volume 2.0
+        range_x = range_y = range_z = max_range
     
         mid_x = (X_max+X_min) * 0.5
         mid_y = (Y_max+Y_min) * 0.5
         mid_z = (Z_max+Z_min) * 0.5
-        ax.set_xlim(mid_x - max_range, mid_x + max_range)
-        ax.set_ylim(mid_y - max_range, mid_y + max_range)
-        ax.set_zlim(mid_z - max_range, mid_z + max_range)   
+        ax.set_xlim(mid_x - range_x, mid_x + range_x)
+        ax.set_ylim(mid_y - range_y, mid_y + range_y)
+        ax.set_zlim(mid_z - range_z, mid_z + range_z)  
+        
+        #ax.set_box_aspect([1,1,1]) # IMPORTANT - this is the new, key line
+        ax.set_proj_type('ortho') # OPTIONAL - default is perspective (shown in image above)
+        #set_axes_equal(ax) # IMPORTANT - this is also required
+        #ax.axis('equal')
         
 
     def InitScene(self, ax = None, fig = None):
@@ -1091,6 +1251,8 @@ class DisplayManager:
             fig.canvas.set_window_title('3D Scene')
             ax = fig.gca(projection='3d')
             fig.tight_layout()
+            
+            ax.set_proj_type('ortho')
             
             #self.ax.xaxis.set_pane_color((0.0, 0.0, 0.0, 0.0))
             #self.ax.yaxis.set_pane_color((0.0, 0.0, 0.0, 0.0))
@@ -1129,6 +1291,13 @@ class DisplayManager:
             
         return cMo
 
+#            ext = np.concatenate((tvec, rvec), axis=0).reshape(1,6)
+#            if extrinsics_camera is None:
+#                extrinsics_camera = ext
+#            else:
+#                extrinsics_camera = np.vstack((extrinsics_camera,ext))
+#                
+#            return extrinsics_camera
 
     def DrawObjects(self, ax, object_list, patternCentric = False):
         # check
@@ -1214,7 +1383,7 @@ class DisplayManager:
         #self.ScaleScene(ax)
         
         return object_list #min_values.ravel(), max_values.ravel()    
-
+    
     
     def UpdateObject(self, object_list = None, obj_name = 'base', obj_num = 1, obj_pose = 6*[None] ):
         # update the existing object with new extrinsic data
@@ -1322,16 +1491,16 @@ class DisplayManager:
     def Print(self, txt='',level='I'):
         
         if level == 'I':
-            ptxt = 'I: DSP: %s' % txt
-            log.info(ptxt)  
+            ptxt = 'I: DM: %s' % txt
+            logger.info(ptxt)  
         if level == 'W':
-            ptxt = 'W: DSP: %s' % txt
-            log.warning(ptxt)  
+            ptxt = 'W: DM: %s' % txt
+            logger.warning(ptxt)  
         if level == 'E':
-            ptxt = 'E: DSP: %s' % txt
-            log.error(ptxt)  
+            ptxt = 'E: DM: %s' % txt
+            logger.error(ptxt)  
            
-        #print(ptxt)
+        print(ptxt)
 
     def TestScenePose(self, cfg):
         #    
@@ -1356,42 +1525,47 @@ class DisplayManager:
         ax                  = self.InitScene(ax, fig)
         
         # board just for reference
-        b1                  = np.array([834.2, 0.0,  -200,  0.0,  0.0, -0.0 ]).reshape(1,6)
+        b1                  = np.array([-100.2, -100.0,  0,  0.0,  0.0, -0.0 ]).reshape(1,6)
         extrinsics_board    = np.vstack((b1))
         board_list          = self.GetBoardParams(extrinsics_board)
                 
         # griper params    
-        e1                  = np.array([854.2, 148.2, -13.1, -177.5, 13.7, -84.2 ]).reshape(1,6)
+        e1                  = np.array([754.2, 148.2, 700.1, -120.5, 0.7, -84.2 ]).reshape(1,6)
         extrinsics_grip     = np.vstack((e1))    
         griper_list          = self.GetGripperParams(extrinsics_grip)
         
         # camera params from the gripper
-        camera_list         = self.GetCameraParams()
+        e1                  = np.array([654.2, 148.2, 800.1, -120.5, 0.7, -84.2 ]).reshape(1,6)
+        extrinsics_cam      = np.vstack((e1))    
+        camera_list         = self.GetCameraParams(extrinsics_cam)
 
         # lines
-        v1                  = np.array([1000.0, 200.0,     30.0,   90.0, 90.0, -0.0 ]).reshape(1,6)
-        v2                  = np.array([1000.0, 200.0,     35.0,   90.0, 90.0, -0.0 ]).reshape(1,6)
-        extrinsics_obj      = np.vstack((v1,v2))    
+        v1                  = np.array([1000.0,  400.0,     530.0,   90.0, 90.0, -0.0 ]).reshape(1,6)
+        #v2                  = np.array([1000.0,  400.0,     540.0,   90.0, 90.0, -0.0 ]).reshape(1,6)
+        extrinsics_obj      = np.vstack((v1))    
         line_list          = self.GetLineParams(extrinsics_obj)
         
         # hangers
-        v1                  = np.array([1000.0, -100.0,     30.0,   0.0, 0.0, -0.0 ]).reshape(1,6)
-        v2                  = np.array([1000.0, 100.0,     35.0,   0.0, 0.0, -0.0 ]).reshape(1,6)
+        v1                  = np.array([1000.0, -100.0,     530.0,   0.0, 0.0, -0.0 ]).reshape(1,6)
+        v2                  = np.array([1000.0,  100.0,     535.0,   0.0, 0.0, -0.0 ]).reshape(1,6)
         extrinsics_obj      = np.vstack((v1,v2))    
         hanger_list          = self.GetHangerParams(extrinsics_obj)
 
         # separators
-        v1                  = np.array([1000.0,  -5.0,       35.0,   0.0, 0.0, -0.0 ]).reshape(1,6)
-        v2                  = np.array([1000.0, 150.0,     35.0,   0.0, 0.0, -0.0 ]).reshape(1,6)
+        v1                  = np.array([1000.0,   -5.0,     535.0,   0.0, 0.0, -0.0 ]).reshape(1,6)
+        v2                  = np.array([1000.0,  150.0,     535.0,   0.0, 0.0, -0.0 ]).reshape(1,6)
         extrinsics_obj      = np.vstack((v1,v2))    
         separator_list      = self.GetSeparatorParams(extrinsics_obj)
 
 
         patternCentric      = False
         object_list         = board_list + camera_list + griper_list + line_list + hanger_list + separator_list
-        self.DrawObjects(ax, object_list, patternCentric)    
-        
+        self.DrawObjects(ax, object_list, patternCentric)            
         self.ScaleScene(ax)
+        
+        # remember me
+        self.object_list_current = object_list
+        return object_list        
                
     def TestInitShowCameraBaseTool(self, ax = None, fig = None):
         # actual use case from hangers manageer
@@ -1435,6 +1609,55 @@ class DisplayManager:
         self.object_list_current = object_list
 
         return object_list
+    
+    def TestTrafficCamera(self, ax = None, fig = None):
+        # actual use case from singapore
+        ax                  = self.InitScene(ax, fig)
+        
+        # board just for reference
+#        b1                  = np.array([0.0,   0.0,   0.0,  0.0,  0.0, -0.0 ]).reshape(1,6)
+#        extrinsics_board    = np.vstack((b1))
+#        b_radius            = [500]
+#        base_list           = self.GetBaseParams(extrinsics_board, b_radius)
+        
+        bSize               = (2000,8000)
+        b1                  = np.array([-bSize[0]/2, 0.0, 0.0, 0.0, 0.0, 0.0 ]).reshape(1,6)
+        extrinsics_board    = np.vstack((b1))
+        board_list          = self.GetBoardParams(extrinsics_board, sizeBB = bSize)        
+        
+        # camera params    
+        cSize               = (200,300,400)
+        e1                  = np.array([0.0,  0.0, 3000.0,  -120.0, 0.0, 0.0 ]).reshape(1,6)
+        extrinsics_cam      = np.vstack((e1))    
+        cam_list            = self.GetCameraParams(extrinsics_cam, sizeBB = cSize)
+
+        bSize               = (200,500,300)
+        e1                  = np.array([-500.0,   7000.0,    0.0,  0.0,  0.0,  0.0 ]).reshape(1,6)
+        e2                  = np.array([-500.0,   6000.0,    0.0,  0.0,  0.0,  0.0 ]).reshape(1,6)
+        e3                  = np.array([ 400.0,   2000.0,    0.0 , 0.0,  0.0,  0.0 ]).reshape(1,6)
+        extrinsics_obj      = np.vstack((e1,e2,e3))    
+        box_list           = self.GetBoxParams(extrinsics_obj, sizeBB = bSize)
+        
+#        # points
+#        e1                  = np.array([300.2, 200.2, 100.1,  ]).reshape(1,3)
+#        e2                  = np.array([300.2, 800.2, 100.1,  ]).reshape(1,3)
+#        e3                  = np.array([200.2, 300.2, 100.1,  ]).reshape(1,3)
+#        e4                  = np.array([800.2, 300.2, 100.1,  ]).reshape(1,3)
+#        extrinsics_point    = np.vstack((e1,e2,e3,e4))    
+#        point_list          = self.GetPointParams(extrinsics_point)
+        
+
+        patternCentric      = False
+        object_list         = board_list +  box_list + cam_list #+ point_list
+        self.DrawObjects(ax, object_list, patternCentric) 
+        self.ScaleScene(ax)   
+        
+        # remember me
+        self.object_list_current = object_list
+
+        return object_list    
+    
+    
    
     def TestInitShowCameraGripperPoints(self, ax = None, fig = None):
         # actual use case from hangers manageer
@@ -1482,48 +1705,57 @@ class DisplayManager:
         self.ScaleScene(ax) 
         ax.grid(False)
     
-    def TestRenderaGripperHangersSeparators(self, ax = None, fig = None):
+    def TestRenderaGripperHangersSeparators(self, ax, hanger_pose = [], separator_pose = []):
         # actual use case from hangers manageer
-        # actual use case from hangers manageer
-        ax                  = self.InitScene(ax, fig)
-        
-        # board just for reference
-        b1                  = np.array([834.2, 0.0,  -200,  0.0,  0.0, -0.0 ]).reshape(1,6)
-        extrinsics_board    = np.vstack((b1))
-        board_list          = self.GetBoardParams(extrinsics_board)
-                
-        # griper params    
-        e1                  = np.array([854.2, 148.2, -13.1, -177.5, 13.7, -84.2 ]).reshape(1,6)
-        extrinsics_grip     = np.vstack((e1))    
-        griper_list          = self.GetGripperParams(extrinsics_grip)
-        
-        # camera params from the gripper
-        camera_list         = self.GetCameraParams()
+        if len(hanger_pose) < 1:
+            hanger_pose = [-100, 100]
+            
+        if len(separator_pose) < 1:
+            separator_pose = [-10, 150]
 
+        # board just for reference
+        b1                  = np.array([0.0, 834.2, -200,  0.0,  0.0, -0.0 ]).reshape(1,6)
+        extrinsics_board    = np.vstack((b1))
+        params_board        = self.GetBoardParams(extrinsics_board)
+        
+        # gripper params    
+        e1                  = np.array([148.2, 854.2, 30.1, -177.5, 80.7, -84.2 ]).reshape(1,6)
+        extrinsics_grip     = np.vstack((e1))    
+        params_grip         = self.GetGripperParams(extrinsics_grip)
+        
+        # convert camera params   
+        params_cam          = self.GetCameraParams()
+        e1                  = np.array([148.2, 754.2, 80.1, -177.5, 80.7, -84.2 ]).reshape(1,6)
+        extrinsics_cam      = np.vstack((e1))    
+        params_cam          = {'extrinsics':extrinsics_cam,'width':40,'height':30,'depth':50, 'name':'cameras'}
+
+        
         # lines
-        v1                  = np.array([1000.0, 200.0,     30.0,   90.0, 90.0, -0.0 ]).reshape(1,6)
-        v2                  = np.array([1000.0, 200.0,     35.0,   90.0, 90.0, -0.0 ]).reshape(1,6)
+        v1                  = np.array([-200.0,  1000.0,   30.0,   0.0, 90.0, -0.0 ]).reshape(1,6)
+        v2                  = np.array([-200.0,  1000.0,   35.0,   0.0, 90.0, -0.0 ]).reshape(1,6)
         extrinsics_obj      = np.vstack((v1,v2))    
-        line_list          = self.GetLineParams(extrinsics_obj)
+        params_line          = {'extrinsics':extrinsics_obj,'width':1,'height':500, 'depth':10,'name': 'lines'}
         
         # hangers
-        v1                  = np.array([1000.0, -100.0,     30.0,   0.0, 0.0, -0.0 ]).reshape(1,6)
-        v2                  = np.array([1000.0, 100.0,     35.0,   0.0, 0.0, -0.0 ]).reshape(1,6)
-        extrinsics_obj      = np.vstack((v1,v2))    
-        hanger_list          = self.GetHangerParams(extrinsics_obj)
+        extrinsics_obj      = np.zeros((0,6))
+        for k in range(len(hanger_pose)):
+            v1                  = np.array([hanger_pose[k],  1000.0,   30.0,   0.0, 0.0, -0.0 ]).reshape(1,6)
+            extrinsics_obj      = np.vstack((extrinsics_obj,v1))    
+        params_hanger       = {'extrinsics':extrinsics_obj,'width':1,'height':30, 'depth':10,'name': 'hangers'}
 
         # separators
-        v1                  = np.array([1000.0,  -5.0,       35.0,   0.0, 0.0, -0.0 ]).reshape(1,6)
-        v2                  = np.array([1000.0, 150.0,     35.0,   0.0, 0.0, -0.0 ]).reshape(1,6)
-        extrinsics_obj      = np.vstack((v1,v2))    
-        separator_list      = self.GetSeparatorParams(extrinsics_obj)
+        extrinsics_obj      = np.zeros((0,6))
+        for k in range(len(separator_pose)):
+            v1                  = np.array([separator_pose[k],    1000.0,   35.0,   0.0, 0.0, -0.0 ]).reshape(1,6)
+            extrinsics_obj      = np.vstack((extrinsics_obj,v1))    
+        params_saparator    = {'extrinsics':extrinsics_obj,'width':1,'height':30, 'depth':20,'name': 'separators'}
+
 
 
         patternCentric      = False
-        object_list         = board_list + camera_list + griper_list + line_list + hanger_list + separator_list
-        self.DrawObjects(ax, object_list, patternCentric)    
-        
-        self.ScaleScene(ax)      
+        # params_rays is a list - need to be merged
+        params_list         = [params_cam, params_board, params_grip, params_line, params_hanger, params_saparator]
+        isOk                = self.ShowSceneModelList(params_list, patternCentric, ax)        
         
 #%% --------------------------           
 class TestDisplayManager(unittest.TestCase): 
@@ -1715,7 +1947,7 @@ class TestDisplayManager(unittest.TestCase):
 
         patternCentric      = False
         object_list         = board_list +  separator_list
-        d.DrawObjects(ax, object_list, patternCentric)          
+        d.DrawObjects(ax, object_list, patternCentric)     
         
     def test_ShowBase(self):
         # test line placement
@@ -2055,12 +2287,41 @@ class TestDisplayManager(unittest.TestCase):
 
     def test_ShowCameraGripperPoints(self):
         # actual use case from stereo manageer
-        #cfg                 = ConfigManager(r'D:\RobotAI\Customers\ITPAero\Objects\TrajectoryStereo_01')
-        # a use case
-        cfg                 = ConfigManager(r'D:\RobotAI\Customers\Inditex\Objects\Inditex-Hanger-02')
-        d                   = DisplayManager(cfg)        
-        d.TestInitShowCameraGripperPoints()
-         
+        cfg                 = ConfigManager(r'D:\RobotAI\Customers\ITPAero\Objects\TrajectoryStereo_01')
+        d                   = DisplayManager(cfg)
+        
+
+        # board just for reference
+        b1                  = np.array([158.2, 834.2, -200,  0.0,  0.0, -0.0 ]).reshape(1,6)
+        extrinsics_board    = np.vstack((b1))
+        params_board        = d.GetBoardParams(extrinsics_board)
+        
+        # gripper params    
+        e1                  = np.array([148.2, 854.2, -13.1, -177.5, 13.7, -84.2 ]).reshape(1,6)
+        e2                  = np.array([158.2, 834.2, -13.1,  172.2, 13.3, -79.4 ]).reshape(1,6)
+        e3                  = np.array([168.2, 814.2, -13.1,  -166.5, 8.0, -80.5 ]).reshape(1,6)
+        extrinsics_grip     = np.vstack((e1,e2,e3))    
+        params_grip         = d.GetGripperParams(extrinsics_grip)
+        
+        # convert camera params   
+        params_cam          =  d.GetCameraParams()
+        
+        # points
+        p1                  = np.array([158.2, 834.2, -220]).reshape(1,3) # x,y,z in mm 
+        p2                  = np.array([160.0, 900.0, 0.0]).reshape(1,3) # x,y,z in mm 
+        p3                  = np.array([148.2, 854.2, -31.1]).reshape(1,3) # x,y,z in mm 
+        
+        points3D           = np.vstack((p1,p2,p3)) 
+        params_points       = d.GetPointParams(points3D)   
+
+        #params_grip          = None
+        #params_grip          = None
+        patternCentric      = False
+        # params_rays is a list - need to be merged
+        params_list         = [params_cam, params_board, params_grip] + params_points
+        isOk                = d.ShowSceneModelList(params_list, patternCentric)
+        d.Finish()
+        self.assertEqual(isOk, True)    
         
     def test_ShowCameraGripperHangers(self):
         # actual use case from hangers manageer
@@ -2113,7 +2374,7 @@ class TestDisplayManager(unittest.TestCase):
         cfg                 = ConfigManager(r'D:\RobotAI\Customers\Inditex\Objects\Inditex-Hanger-02')
         d                   = DisplayManager(cfg)        
         d.TestInitShowCameraGripperHangers()
-        TestInitShowCameraGripperPoints
+        
         
     def test_TestRenderaGripperHangersSeparators(self):
         # actual use case from hangers manageer
@@ -2127,7 +2388,14 @@ class TestDisplayManager(unittest.TestCase):
         # actual use case from hangers manageer
         cfg                 = None #ConfigManager(r'D:\RobotAI\Customers\Inditex\Objects\Inditex-Hanger-02')
         d                   = DisplayManager(cfg)
-        d.TestInitShowCameraBaseTool()        
+        d.TestInitShowCameraBaseTool() 
+        
+    def test_TestTrafficCamera(self):
+        # Singapore traffic management system
+        cfg                 = None #ConfigManager(r'D:\RobotAI\Customers\Inditex\Objects\Inditex-Hanger-02')
+        d                   = DisplayManager(cfg)
+        d.TestTrafficCamera()         
+        
         
     def test_RealTimeToolUpdate(self):
         # test figure update
@@ -2170,9 +2438,24 @@ class TestDisplayManager(unittest.TestCase):
             tool_pose[1] = line1[k]
             d.UpdateObject(object_list, obj_name = 'tool', obj_num = 1, obj_pose = tool_pose )
 
-            
+        d.Finish()   
+        
+    def test_RealTimeCameraUpdateWithFunction(self):
+        # test figure update - show camera and gripper motion
+        cfg                 = None
+        d                   = DisplayManager(cfg)
+        object_list         = d.TestInitShowCameraGripperHangers()
 
-        d.Finish()        
+        #line1           = np.random.uniform(low=0.5, high=130.3, size=(2,3))
+        line1               = np.arange(400)+50
+        grip_pose           = 6*[None]
+        for k in range(len(line1)):
+            
+            grip_pose[1] = line1[k]
+            d.UpdateObject(object_list, obj_name = 'gripper', obj_num = 1, obj_pose = grip_pose )
+            d.UpdateObject(object_list, obj_name = 'camera',  obj_num = 1, obj_pose = grip_pose )
+
+        d.Finish()             
         
         
         
@@ -2180,7 +2463,11 @@ class TestDisplayManager(unittest.TestCase):
 #%% 
 if __name__ == '__main__':
     print(__doc__)
-
+#    cfg         = ConfigManager(r'D:\RobotAI\Customers\RobotAI\MouseBox-24Labels')
+#    d           = DisplayManager(cfg)
+#    #d.TestScene(cfg)
+#    d.TestSceneNew()
+#    d.Finish()
     
     # single test
     singletest = unittest.TestSuite()
@@ -2194,22 +2481,25 @@ if __name__ == '__main__':
     #singletest.addTest(TestDisplayManager("test_ShowSeparators")) # ok
     #singletest.addTest(TestDisplayManager("test_ShowBase")) # ok
     
-    
+
     #singletest.addTest(TestDisplayManager("test_RenderCameraCalibrationScene"))
-    #singletest.addTest(TestDisplayManager("test_ShowSceneFromPose"))
+    #singletest.addTest(TestDisplayManager("test_ShowSceneFromPose")) # nok
     #singletest.addTest(TestDisplayManager("test_ShowCameraAndGripper"))
     #singletest.addTest(TestDisplayManager("test_ShowCameraAndPixelRay"))
     #singletest.addTest(TestDisplayManager("test_ShowCameraGripperAndPixelRays"))    
     #singletest.addTest(TestDisplayManager("test_ShowCameraGripperAndPixelRaysUsingList"))   # ok 
-    singletest.addTest(TestDisplayManager("test_ShowCameraGripperPoints"))   # nok 
+    #singletest.addTest(TestDisplayManager("test_ShowCameraGripperPoints"))   # nok 
     #singletest.addTest(TestDisplayManager("test_ShowCameraGripperHangers"))   # ok 
-    #singletest.addTest(TestDisplayManager("test_TestInitShowCameraGripperHangers"))   #  
+    #singletest.addTest(TestDisplayManager("test_TestInitShowCameraGripperHangers"))   #  ok
     #singletest.addTest(TestDisplayManager("test_TestRenderaGripperHangersSeparators"))   #  
-    #singletest.addTest(TestDisplayManager("test_TestInitShowCameraBaseTool"))   #  
+    #singletest.addTest(TestDisplayManager("test_TestInitShowCameraBaseTool"))   # ok 
     
     #singletest.addTest(TestDisplayManager("test_RealTimeUpdate"))  # ok    
     #singletest.addTest(TestDisplayManager("test_RealTimeToolUpdate"))  # ok    
-    #singletest.addTest(TestDisplayManager("test_RealTimeToolUpdateWithFunction"))  # ok    
+    singletest.addTest(TestDisplayManager("test_RealTimeToolUpdateWithFunction"))  # ok    
+    #singletest.addTest(TestDisplayManager("test_RealTimeCameraUpdateWithFunction"))  #  
+    
+    #singletest.addTest(TestDisplayManager("test_TestTrafficCamera")) 
     
     
     unittest.TextTestRunner().run(singletest)
