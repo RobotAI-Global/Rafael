@@ -53,21 +53,25 @@ class ControllerIO:
         
     def Connect(self):
         # Create a TCP/IP socket
-        ret1 = self.ioc1.Connect()
-        if ret1:
-            self.Print('Connected to the controller 1.')
-        else:
-            self.Print('Connected to the controller 1.','W')
+        try:
+            self.ioc1.Connect()
+        except:
+            self.Print('Connection to the controller 1 - fail.','W')
+            return False
+        
+        self.ioc1.Close()
             
-        ret2 = self.ioc2.Connect()
-        if ret2:
-            self.Print('Connected to the controller 2.')
-        else:
-            self.Print('Connected to the controller 2.','W')        
+        try:
+            self.ioc2.Connect()
+        except:
+            self.Print('Connection to the controller 2 - fail.','W')  
+            return False
+            
+        self.ioc2.Close()
             
         self.Print('Connected to the controllers.')
         
-        return ret1 and ret2
+        return True
     
     def IsConnected(self):
         # chekc if the socket is open
@@ -116,7 +120,7 @@ class ControllerIO:
         self.ioc1.Home()    
         self.ioc2.Home()  
         
-        return ret
+        return True
     
     ## ------------------------------------  
     # -- Table Control ---
@@ -180,10 +184,10 @@ class ControllerIO:
         
     def CheckAirSupply(self):
         "check if air is in"
-        
-        # set output to move backward
-        #self.SetOutput(1, '00')   
-        return True
+         
+        val = self.ioc2.GetInput(3) 
+        ret = val > 0.5  # 1 is ok
+        return ret
     
     def CheckEmergencyStop(self):
         "check if emergency is pressed"
@@ -205,12 +209,12 @@ class ControllerIO:
     def CheckTwoButtonPush(self):
         "check if 2 buttons are pushed by human opeartor"
         
-        ret1 = self.GetInput(1)    
-        ret2 = self.GetInput(2) 
+        ret1 = self.ioc1.GetInput(4)   
+        ret2 = self.ioc1.GetInput(5) 
         
-        self.Print('Preassed %d and %d' %(ret1, ret2))
+        self.Print('Pressed %s and %s' %(str(ret1), str(ret2)))
         
-        ret    = ret1 and ret2
+        ret    = ret1  > 0.5 and ret2 > 0.5
         return ret    
 
         
@@ -415,17 +419,29 @@ class ControllerIO:
             
         
     def Test(self):
-        self.Connect()
+        #self.Connect()
         
         # turn on relay 1 with no delay
         self.ioc1.Test()    
         self.ioc2.Test()  
         
-        self.Close()        
+        self.Close()   
+        
+    def CheckStatusIO(self):
+        #self.Connect()
+        
+        # turn on relay 1 with no delay
+        self.ioc1.TestScan()    
+        self.ioc2.TestScan()  
+        
+        #self.Close()         
         
 if __name__ == '__main__':
     c = ControllerIO()
-    c.Test()
+    #c.Connect()
+    #c.Test()
+    #c.CheckTwoButtonPush()
+    c.CheckStatusIO()
         
         
 

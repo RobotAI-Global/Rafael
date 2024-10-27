@@ -26,9 +26,7 @@ installation:
 
 #%% Imports
 
-#import os
 import sys
-#sys.path.insert(1, r'D:\RobotAI\Customers\EGM\Python\egm\pose6d\gui')
 sys.path.insert(1, r'.\\robot')
 sys.path.insert(1, r'.\\gui')
 

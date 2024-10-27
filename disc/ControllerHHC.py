@@ -32,7 +32,7 @@ logger      = logging.getLogger("robot")
 
 #%%
 class IOController:
-    def __init__(self, parent=None, host = '192.168.2.106', port = 5000):
+    def __init__(self, parent=None, host = '192.168.2.105', port = 5000):
         #super().__init__()
         self.parent         = parent
         # Server information
@@ -79,12 +79,12 @@ class IOController:
     def SendDataToController(self, cCommand):
         # Send data to the server       
         self.client_socket.sendall(cCommand.encode())
-        self.Print('Message sent to the controller:', cCommand)        
+        #self.Print('Message sent to the controller:', cCommand)        
     
     def ReciveDataFromController(self, cCommand, cNumber):
         # Receive data from the server
         self.data = self.client_socket.recv(1024).decode()
-        self.Print('Message received from the controller:', self.data)       
+        #self.Print('Message received from the controller:', self.data)       
 
         if cCommand == 'input':
             # Take only the data from the return string 'input00000000'
@@ -112,9 +112,11 @@ class IOController:
         # read all Inputs
         self.SendDataToController('input')
         # get input status
-        self.rValue = self.ReciveDataFromController('input', iNumber)
-        self.Print('GetInputStatus : %s' %str(iNumber))
-        return self.rValue
+        res = self.ReciveDataFromController('input', iNumber) # self.rValue
+        #self.Print('GetInputStatus : %s' %str(self.rValue))
+        
+        self.Print(f'Input {iNumber} : {res}')
+        return res
     
     def SetOutput(self, iNumber, sDelay):
         self.sCommand = 'on'
@@ -162,6 +164,10 @@ class IOController:
         # close the connection
         self.client_socket.close()
         self.Print('Connection with the controller closed.')
+        
+    def Close(self):
+        "dublicated"
+        self.CloseConnectionWithController()
         
     def ControllerThread(self):  
         "main thread"        
@@ -442,7 +448,13 @@ class IOController:
         elif self.GetTestCellDoorBackwardPosition():
             ret = 2
         
-        return ret        
+        return ret   
+
+    def GetInput(self, input_id = 0):
+        "reads sensor backward position of the door"  
+        valOnOff    = self.GetInputStatus(input_id)
+        ret         = 1 if valOnOff == 'on' else 0
+        return ret     
             
     def CloseTestCellDoor(self):
         "closes the door of the cell"
@@ -515,8 +527,9 @@ class IOController:
         return ret
              
 
-    def Print(self, ptxt='',level='I'):
+    def Print(self, txt='',level='I'):
         
+        ptxt = '%s : %s' %(self.ServerIp,txt)
         if level == 'I':
             #ptxt = 'I: IOC: %s' % txt
             logger.info(ptxt)
@@ -549,11 +562,22 @@ class IOController:
         self.rStatus = self.GetInputStatus(1)
         self.Print('input 1:', self.rStatus)             
         
-        self.CloseConnectionWithController()        
+        self.CloseConnectionWithController()   
+        
+    def TestScan(self):
+        "scanning all inputs"
+        self.Connect()
+        for k in range(8):
+            res = self.GetInputStatus(k)
+            
+        self.Close()
+               
+            
         
 if __name__ == '__main__':
     c = IOController()
-    c.Test()
+    #c.Test()
+    c.TestScan()
         
         
 

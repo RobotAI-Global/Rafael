@@ -261,11 +261,11 @@ class MonitorGUI:
             #self.rbm    = RobotManager(ip = self.ip_robot, port = self.port_robot, block_com=False, config=self.cfg) #RobotServerThread(host = self.ip, port = self.port,  debug=self.debugOn, config = self.cfg)
             #self.rbm.instanceSocket()
             #self.rbm.start()
-        elif self.rbm.Connected():   
+        elif self.rbm.is_connected():   
             self.tprint('Robot is alive')
         else:
-            self.rbm.RobotData()
-            self.tprint('Robot is restarted')
+            #self.rbm.RobotData()
+            self.tprint('Robot is connected')
             
         #self.rbm.setPowerOn()
         #self.rbm.setReleaseBrake()
@@ -275,7 +275,7 @@ class MonitorGUI:
         self.tprint('Stop Robot  ...')
         
         # maybe already running
-        if self.rbm is None or self.rbm.Connected() is False:
+        if self.rbm is None or self.rbm.is_connected() is False:
             self.tprint('Connect to the robot first ...')
             return
         
@@ -292,7 +292,7 @@ class MonitorGUI:
         self.tprint('Getting Robot status ...')
 
         # maybe already running
-        if self.rbm is None or self.rbm.Connected() is False:
+        if self.rbm is None or self.rbm.is_connected() is False:
             self.tprint('Connect to the robot first ...')
             return
         
@@ -410,7 +410,7 @@ class MonitorGUI:
     def robotDiffMovePose(self, dPose = np.zeros((1,6))):
         # read pose
         # maybe already running
-        if self.rbm is None or self.rbm.connected() is False:
+        if self.rbm is None or self.rbm.is_connected() is False:
             self.tprint('Connect to the robot first ...')
             return
 
@@ -441,36 +441,23 @@ class MonitorGUI:
         self.rbm.setmovel(robotPose, num1 = str(self.robot_speed), num2= str(self.robot_speed), num3= str(self.robot_speed))
         
     def robotAbsoluteMovePose(self, dPose = [0]*6):
-        # move to pose
-
-        # maybe already running
-        # if self.rbm is None or self.rbm.connected() is False:
-        #     self.tprint('Connect to the robot first ...')
-        #     return 
+        # move to euler pose
 
         #self.tprint('Robot read pose and move ... ') 
-        self.tprint('Going to Robot pose [mm,deg] %s ' %str(np.round(dPose,2)))
+        self.tprint('Going to Robot pose [mm, deg] %s ' %str(np.round(dPose,2)))
 
-        # res = self.rbm.getmovel() #getTool_xyzrxryrz()
-        # isOk, robotPose, msg = res
-        # #self.tprint('Robot pose is : %s' %str(robotPose))
-        # if not isOk:
-        #     self.tprint('Can not read position')
-        #     return
         robotPose    = dPose.copy() #np.array(dPose).copy()
         
-        robotPose[0] = dPose[0] / 1000
-        robotPose[1] = dPose[1] / 1000
-        robotPose[2] = dPose[2] / 1000
-        robotPose[3] = np.deg2rad(dPose[3])
-        robotPose[4] = np.deg2rad(dPose[4])
-        robotPose[5] = np.deg2rad(dPose[5])
+#        robotPose[0] = dPose[0] / 1000
+#        robotPose[1] = dPose[1] / 1000
+#        robotPose[2] = dPose[2] / 1000
+#        robotPose[3] = np.deg2rad(dPose[3])
+#        robotPose[4] = np.deg2rad(dPose[4])
+#        robotPose[5] = np.deg2rad(dPose[5])
 
         
         #self.tprint('Going to Robot pose [m,rad]%s ' %str(robotPose))
-        #self.rbm.setmovel(robotPose, num1 = str(self.robot_speed), num2='100', num3='100')
-        #isOk, robotPose, msg = self.rbm.setmovel(robotPose, num1 = str(self.robot_speed), num2= str(self.robot_speed), num3= str(self.robot_speed))
-        self.rbm.setmovel(robotPose)
+        self.rbm.set_pose_euler(robotPose)
         return 
     
     
@@ -693,6 +680,11 @@ class MonitorGUI:
         self.ioc.SetOutput(addr,val)
         self.tprint(f'IO sending value {val} to {addr}')
         
+    def ioCheckTwoButtonPush(self):
+        "two buttons on the table are pressed"
+        ret = self.ioc.CheckTwoButtonPush()
+        self.tprint(f'Check button pressed : {ret}')
+        
     def ioDisconnect(self):
         # disonnecteing
         self.ioc.CloseConnectionWithController()        
@@ -705,22 +697,24 @@ class MonitorGUI:
         # check multi point motion as deefined by China
         self.tprint('Starting point motion ...')
 
-        val = 1
-        pointNum  = len(SCAN_POINTS)
-        for k in range(pointNum):
-
-            #self.robotCommState()
-            robotPose = SCAN_POINTS[k].copy()
-
-            self.tprint('Moving....')
-            self.robotAbsoluteMovePose(robotPose)
-            time.sleep(0.1)
-
-            self.tprint('Gripper on-off')
-            self.robotGripperOnOff(val)
-            val = 1 - val
-
-            self.tprint('Finishing scan point %d from %d' %(k+1,pointNum))
+#        val = 1
+#        pointNum  = len(SCAN_POINTS)
+#        for k in range(pointNum):
+#
+#            #self.robotCommState()
+#            robotPose = SCAN_POINTS[k].copy()
+#
+#            self.tprint('Moving....')
+#            self.robotAbsoluteMovePose(robotPose)
+#            time.sleep(0.1)
+#
+#            self.tprint('Gripper on-off')
+#            self.robotGripperOnOff(val)
+#            val = 1 - val
+#
+#            self.tprint('Finishing scan point %d from %d' %(k+1,pointNum))
+        
+        self.rbm.MovePathPoints()
             
 
         self.tprint('Robot finished the scan.')
@@ -1042,7 +1036,10 @@ class MonitorGUI:
         
         iomenu.add_separator()
         iomenu.add_command(label='Get Info',                     command=self.ioGetInfo)  
-        iomenu.add_command(label='Set Value',                    command=self.ioSetInfo)          
+        iomenu.add_command(label='Set Value',                    command=self.ioSetInfo)   
+        iomenu.add_command(label='Get Push Button',              command=self.ioCheckTwoButtonPush) 
+        
+        
 
         # ----------------------------------------
         # Task commands

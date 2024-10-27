@@ -190,6 +190,10 @@ class Robot:
         self.tprint('Collision is disabled')
         self.disable_collision_detection()
         
+        self.tprint('Automatic mode')
+        self.power_on()
+        self.switch_to_automatic_mode()
+        
         self.tprint('Connetcion Created')
         
     def help(self, name):
@@ -407,12 +411,13 @@ class Robot:
         ret = self.gripper()
         return ret
         
-    def get_point_pose(self, g_Type = "Position", g_PosName = "Home"):
+    def get_point_pose(self, g_Type = "Position", pointName = "Home"):
         "g_Type - Position or Joint"
 
         
         # list of joint angles
-        target       = self.get_point(str(g_PosName))
+        #target       = self.get_point(str(g_PosName))
+        target       = self.get_point(pointName, 'Cartesian')
         
 #        if g_Type == 'Position':            
 #            target = [p['originX'], p['originY'], p['originZ'], p['originA'], p['originB'], p['originC']]
@@ -518,9 +523,22 @@ class Robot:
         ret = self.CheckAirCution()
         ret = self.CheckPushCylinder() and ret
         
-        self.set_gripper('open')
-        
+        self.set_gripper('open')        
         return ret
+    
+    def MovePathPoints(self, point_list = []):
+        "executes motion over defined point list"
+        if len(point_list) < 1:
+            point_list = ['Home', 'AboveTable','TakePart','AboveTable']
+            
+        repeat_num = 2
+        for k in range(repeat_num):
+            for pname in point_list:
+                next_pose = self.get_point_pose('Position', pname)
+                self.move_linear_from_current_position([next_pose], 5, 1) 
+                time.sleep(0.1)
+                
+        self.tprint('MovePathPoints done')
         
 
     def PickTestConnector(self):
@@ -678,7 +696,7 @@ class TestRobotAPI: #unittest.TestCase
         
         p = self.r.get_current_cartesian_pose()
         self.r.tprint(p)
-        p[0] = p[0] + 0.1
+        p[0] = p[0] - 0.1
     
         self.r.move_linear_from_current_position([p], 5, 1)      
         
@@ -754,6 +772,25 @@ class TestRobotAPI: #unittest.TestCase
         print('Analog')
         gr   = self.r.get_analog_io()
         print(gr)
+        
+    def TestPathMotion(self):
+        "move between differnet points defined in the robot"
+        
+        #self.r.power_on()
+        #self.r.switch_to_automatic_mode()
+        
+#        point_list = ['Home', 'AboveTable','TakePart','AboveTable']
+#        repeat_num = 5
+#        for k in range(repeat_num):
+#            for pname in point_list:
+#                next_pose = self.r.get_point_pose('Position', pname)
+#                self.r.move_linear_from_current_position([next_pose], 5, 1) 
+#                time.sleep(1)
+        
+        self.r.MovePathPoints()
+                
+        print('TestPathMotion')
+       
   
 
 #%%
@@ -762,9 +799,10 @@ if __name__ == '__main__':
     #from Robot import TestRobotAPI
     tapi = TestRobotAPI()
     #tapi.TestInfo()    # ok
-    tapi.TestMotion() # ok
+    #tapi.TestMotion() # ok
     #tapi.TestCommands() # ok
     #tapi.TestEulerMotion() # ok
     #tapi.TestSwitchTool() # 
     #tapi.TestGripper() # 
     #tapi.TestIO() # 
+    tapi.TestPathMotion()
