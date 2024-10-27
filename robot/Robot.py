@@ -636,6 +636,7 @@ class TestRobotAPI: #unittest.TestCase
     
     def __init__(self):
         self.r = Robot()
+        self.r.connect()
         
     def TestInfo(self):
         
