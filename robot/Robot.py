@@ -627,6 +627,14 @@ class Robot:
         
         # if gripper is open
         
+        # check region
+        # if room do something
+        
+        # if table do
+        
+        
+        
+        
         # move robot to predefined pose
         pose = self.GetHomePosition()
         self.set_pose(pose)
