@@ -325,16 +325,6 @@ class MainProgram:
         self.Print(f'MoveTableIndex : {ret}')
         return ret 
 
-    
-    def NextTableIndex(self, increment = 1):
-        # go to next position
-        self.Print('Next table position ...')
-        
-        # two stations
-        self.MoveTableIndex()
-        self.MoveTableIndex()
-
-        return True
 
     ## -------------------------------
     #  -- STATES ---
@@ -464,9 +454,9 @@ class MainProgram:
         next_state  = curr_state
         
         # check if UUT in place - statw wait
-        ret = self.ioc.CheckUUTInPlaceLoadPosition()
+        ret = self.ioc.CheckPartInLoadPosition()
         while not ret:
-            ret = self.ioc.CheckUUTInPlaceLoadPosition()
+            ret = self.ioc.CheckPartInLoadPosition()
         
         # 2 switch rotate sensor - state wait
         ret = self.ioc.CheckTwoButtonPush()
@@ -474,10 +464,13 @@ class MainProgram:
             ret = self.ioc.CheckTwoButtonPush()        
         
         # move table to the next index
-        self.ioc.NextTableIndex()
-        
+        ret = self.ioc.MoveTableNextStation()
+        if not ret:
+            self.error = ERROR.MOVE_TABLE_PROBLEM
+            next_state = STATE.ERROR 
+            
         # in the final state send done to host
-
+        
         return msg_out, next_state  
     
     def StateWaitUUTInPlace(self, msg_in, curr_state):
@@ -485,7 +478,7 @@ class MainProgram:
         msg_out     = msg_in
         next_state  = curr_state
         
-        ret = self.ioc.CheckUUTInPlaceLoadPosition()
+        ret = self.ioc.CheckPartInLoadPosition()
         if ret:
             self.Print('UUT in place')
             self.error = ERROR.NONE
@@ -512,10 +505,11 @@ class MainProgram:
         msg_out     = msg_in
         next_state  = curr_state
         
-        # check if UUT in place - statw wait
-        ret = self.ioc.CheckUUTInPlaceLoadPosition()
+        # check if UUT in place - state wait
+        ret = self.ioc.CheckPartInLoadPosition()
         while ret: # while UUT inside
-            ret = self.ioc.CheckUUTInPlaceLoadPosition()
+            self.Print('Wait for human to unload - PLEASE UNLOAD UUT FROM TABLE')
+            ret = self.ioc.CheckPartInLoadPosition()
         
         # 2 switch rotate sensor - state wait
         ret = self.ioc.CheckTwoButtonPush()
@@ -523,7 +517,11 @@ class MainProgram:
             ret = self.ioc.CheckTwoButtonPush() 
         
         # move table to the next index
-        self.ioc.NextTableIndex(increment = -1)
+        #self.ioc.NextTableIndex(increment = -1)
+        ret = self.ioc.MoveTableNextStation()
+        if not ret:
+            self.error = ERROR.MOVE_TABLE_PROBLEM
+            next_state = STATE.ERROR         
         
         return msg_out, next_state   
     
