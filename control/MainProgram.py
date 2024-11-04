@@ -24,7 +24,7 @@ server_version   = '0101'
 #import threading
 #import json
 #import logging as log
-#import time   # just to measure switch time
+import time   # just to measure switch time
 #import logging
 from threading import Thread
 
@@ -66,7 +66,7 @@ from gui.Logger import logger
 
 #%% 
 #try:
-from control.ConfigManager import ConfigManager
+from gui.ConfigManager import ConfigManager
 from robot.Robot import Robot as RobotManager
 from host.ComServer  import ComServer as HostManager
 #from control.StateMachine import StateMachine
@@ -147,7 +147,7 @@ class MainProgram:
         self.rbm        = RobotManager(parent = self)
 
         # host comm
-        self.host       = HostManager(parent = self)    
+        #self.host       = HostManager(parent = self)    
         
         # connectio to IO
         self.ioc        = ControllerIO(parent = self)
@@ -163,11 +163,12 @@ class MainProgram:
         self.cfg.Init()
         self.rbm.Init()
         self.ioc.Init()
-        self.host.Init()
+        #self.host.Init()
         #self.rsm.Init()
         self.state = STATE.INIT
         self.error = ERROR.NONE
         self.Print('Init')
+        return True
         
     def Start(self):
         "start running"        
@@ -258,6 +259,82 @@ class MainProgram:
 #        ret         = False
 #        return ret    
         
+
+    
+    ## ------------------------------------  
+    # -- Table Control ---
+    ## ------------------------------------        
+    def MoveTableHome(self):
+        # go to home position
+        self.Print('Moving table to home position ...')
+        
+        home_sensor = self.rbm.CheckTableHomePosition()
+        count       = 0
+        while not home_sensor:
+             
+            # move table
+            self.MoveTableIndex()
+            
+            # read home sensor again
+            home_sensor = self.rbm.CheckTableHomePosition()
+            
+            # prevent endless rotation
+            count = count + 1
+            if count > 23:
+                break 
+            
+        if home_sensor:
+            self.Print('Table in home position')
+        else:
+            self.Print('Table home is not found','E')
+            
+        return home_sensor
+    
+    def MoveTableNextStation(self):
+        "next station - 2 index moves"
+        self.Print('Moving table to next station ...')
+        
+        ret = self.MoveTableIndex()
+        if not ret:
+            self.Print('Can not move to the next index 1','E')
+            return ret
+        
+        ret = self.MoveTableIndex()
+        if not ret:
+            self.Print('Can not move to the next index 2','E')
+            return ret
+            
+        self.Print('Done')
+        return ret
+    
+    def MoveTableIndex(self, timeout = 5):
+        "moving the table one index from 24 stations"
+        self.Print('Moving table one index ...')   
+        
+        self.rbm.SetTableDriver('on')
+        ret = self.ioc.CheckTableIndex()
+        
+        t_start = time.time()
+        while not ret:
+            time.sleep(0.2)
+            ret = self.CheckTableIndex()
+            if time.time() - t_start > timeout:
+                self.Print('MoveTableIndex - timeout')
+                break
+        
+        self.Print(f'MoveTableIndex : {ret}')
+        return ret 
+
+    
+    def NextTableIndex(self, increment = 1):
+        # go to next position
+        self.Print('Next table position ...')
+        
+        # two stations
+        self.MoveTableIndex()
+        self.MoveTableIndex()
+
+        return True
 
     ## -------------------------------
     #  -- STATES ---
@@ -813,6 +890,10 @@ class MainProgram:
             logger.error(txt)
         #print(ptxt)
 
+    def TestMoveTableHome(self):
+        "testing table motion"
+        ret = self.Init()
+        ret = self.MoveTableHome()
 
             
 #%% Testing - unittest
@@ -852,9 +933,12 @@ class TestMainProgram:
 # --------------------------
 if __name__ == '__main__':
     #from MainProgram import MainProgram
-    tst = TestMainProgram()
+    #tst = TestMainProgram()
     #tst.test_current_state() # ok
     #tst.test_init() # ok 
     #tst.test_start() # ok 
     #tst.test_main() # ???
-    tst.test_state_init()
+    #tst.test_state_init()
+    
+    mp = MainProgram()
+    mp.TestMoveTableHome()

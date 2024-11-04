@@ -118,9 +118,9 @@ class IOController:
         self.tprint(f'Input {iNumber} : {res}')
         return res
     
-    def SetOutput(self, iNumber, sDelay):
-        self.sCommand = 'on'
-        self.OutputNumber = str(iNumber)
+    def SetOutput(self, iNumber, Cmnd = 'on', sDelay = '00'):
+        self.sCommand       = Cmnd
+        self.OutputNumber   = str(iNumber)
         
         # Sample Commands
         # turn on relay 1
@@ -138,8 +138,8 @@ class IOController:
         self.SendDataToController(self.sOutput) 
         # get relay status
         self.rValue = self.ReciveDataFromController('output', iNumber)
+        self.tprint('SetOutput %s : %s' %(str(iNumber),str(self.rValue)))
         
-        self.tprint('SetOutput : %s' %str(iNumber))
         return self.rValue
     
     def ResetOutput(self, iNumber):
@@ -200,51 +200,39 @@ class IOController:
         self.stopTask = True
         self.ts.join()          
     
-    ## ------------------------------------  
-    # -- Table Control ---
-    ## ------------------------------------        
-    def SetTableHome(self):
-        # go to home position
-        self.tprint('Starting Homing ...')
-        
-        home_sensor = False
-        while not home_sensor:
-             
-            # read home sensor
-            home_sensor = True
-        
-        return True
-        
-    def GetTableIndex(self):
-        # go to home position
-        self.tprint('Current table position ...')
-        return True
+#    ## ------------------------------------  
+#    # -- Table Control ---
+#    ## ------------------------------------        
+#    def SetTableHome(self):
+#        # go to home position
+#        self.tprint('Starting Homing ...')
+#        
+#        home_sensor = False
+#        while not home_sensor:
+#             
+#            # read home sensor
+#            home_sensor = True
+#        
+#        return True
+#        
+#    def GetTableIndex(self):
+#        # go to home position
+#        self.tprint('Current table position ...')
+#        return True
+#    
+#    def NextTableIndex(self, increment = 1):
+#        # go to next position
+#        self.tprint('Next table position ...')
+#        
+#        # two stations
+#        self.MoveTableIndex()
+#        self.MoveTableIndex()
+#  
+#        self.uut_counter += increment 
+#
+#        return True
     
-    def NextTableIndex(self, increment = 1):
-        # go to next position
-        self.tprint('Next table position ...')
-        
-        # two stations
-        self.MoveTableIndex()
-        self.MoveTableIndex()
-  
-        self.uut_counter += increment 
 
-        return True
-    
-    ## ------------------------------------  
-    # -- Tester Control ---
-    ## ------------------------------------        
-
-
-    
-    def BuhnaIsOpen(self):
-        # buhna is open
-        self.tprint('Open Buhna ...')
-        return True     
-    
-    
-    
 
     ## ------------------------------------  
     # -- IO Control ---
@@ -273,258 +261,21 @@ class IOController:
         self.ioc.SetOutput(addr,val)
         self.tprint(f'IO sending value {val} to {addr}')
         
-    def CheckAirSupply(self):
-        "check if air is in"
-        
-        # set output to move backward
-        #self.SetOutput(1, '00')   
-        return True
+#    def CheckAirSupply(self):
+#        "check if air is in"
+#        
+#        # set output to move backward
+#        #self.SetOutput(1, '00')   
+#        return True
+#    
+#    def CheckEmergencyStop(self):
+#        "check if emergency is pressed"
+#        
+#        # set output to move backward
+#        #self.SetOutput(1, '00')   
+#        return True 
     
-    def CheckEmergencyStop(self):
-        "check if emergency is pressed"
-        
-        # set output to move backward
-        #self.SetOutput(1, '00')   
-        return True 
-    
-    def CheckUUTInPlaceLoadPosition(self):
-        "check if UUT in place for human"
-        
-        return True
-    
-    def CheckUUTInPlaceRobotPosition(self):
-        "check if UUT in place for robot"
-        
-        return True 
-    
-    def CheckTwoButtonPush(self):
-        "check if 2 buttons are pushed by human opeartor"
-        
-        ret1 = self.GetInput(1)    
-        ret2 = self.GetInput(2) 
-        
-        self.tprint('Preassed %d and %d' %(ret1, ret2))
-        
-        ret    = ret1 and ret2
-        return ret    
-        
-    def Disconnect(self):
-        # disonnecteing
-        self.CloseConnectionWithController()  
-        
-        
-    def LinearAxisForwardPosition(self):
-        "reads sensor forward position of the linear state"
-        
-        return True
-        
-    def LinearAxisBackwardPosition(self):
-        "reads sensor backward position of the linear state"  
-        
-        return True
-        
-    def GetRobotLinearAxisPosition(self):
-        """ 
-        
-        linear stage
-        
-        Returns:
-            ret : 0 - not defined, 1 - forward position, 2 - backward position
-        
-        """
-        
-        ret = 0
-        if self.LinearAxisForwardPosition():
-            ret = 1
-        elif self.LinearAxisBackwardPosition():
-            ret = 2
-        
-        return ret
-        
-        
-        
-    def CheckTableInHomePosition(self):
-        "return true only when in IO sens the home position : Table Home Position Sensor"
-        
-        return True
-    
-    
-    def SetTableIndex(self):
-        "moves the table for one index"
-    
-    def WaitForTableIndexDone(self):
-        "the table has reached index poxition and finished to move"
-        
-        return True
-    
-    def MoveTableIndex(self):
-        "rotates table by one position"
-        " the table has actual 12 statoins but totally is build for 24 indexes"
-        self.SetTableIndex()
-        ret = False
-        while not ret:            
-            ret = self.WaitForTableIndexDone()        
-        return True    
-        
-    def MoveTableToHomePosition(self):
-        "rotate table to home position"
-        ret = self.CheckTableInHomePosition()
-        while not ret:
-            self.MoveTableIndex()
-            ret = self.CheckTableInHomePosition()
-            
-    def MoveRobotLinearAxisBackward(self):
-        "moves robot to backward position"
-        
-        # set output to move backward
-        #self.SetOutput(1, '00')
-        
-        ret = 0
-        t_start = time.time()
-        timeout = self.TIMEOUT_CYLINDER
-        while not ret == 2:  
-            # stage is moving
-            time.sleep(1)  # 
-            
-            # check back poition gain
-            ret     = self.GetRobotLinearAxisPosition()
-            
-            if (time.time() - t_start) > timeout:
-                self.tprint('Move Backward Timeout', 'E')
-                break
-            
-        return ret    
 
-    def MoveRobotLinearAxisForward(self):
-        "moves robot to forward position"
-        
-        # set output to move backward
-        #self.SetOutput(1, '00')
-        
-        ret = 0
-        t_start = time.time()
-        timeout = self.TIMEOUT_CYLINDER
-        while not ret == 1:  
-            # stage is moving
-            time.sleep(1)  # 
-            
-            # check back poition gain
-            ret     = self.GetRobotLinearAxisPosition()
-            
-            if (time.time() - t_start) > timeout:
-                self.tprint('Move Backward Timeout', 'E')
-                break
-            
-        return ret          
-            
-    def MoveRobotLinearAxisToHomePosition(self):
-        "linear axis to home position"
-        
-        ret     = self.MoveRobotLinearAxisBackward()
-        if ret != 2:
-            self.tprint('Timeout  - can not reach linear axis home position','E')
-            
-    def GetTestCellDoorForwardPosition(self):
-        "reads sensor forward position of the door"
-        
-        return True
-        
-    def GetTestCellDoorBackwardPosition(self):
-        "reads sensor backward position of the door"  
-        
-        return True            
-            
-    def GetTestCellDoorSensor(self):
-        """ 
-        door position piston
-        Returns:
-            ret : 0 - not defined, 1 - closed, 2 - open
-        
-        """
-        
-        ret = 0
-        if self.GetTestCellDoorForwardPosition():
-            ret = 1
-        elif self.GetTestCellDoorBackwardPosition():
-            ret = 2
-        
-        return ret   
-
-    def GetInput(self, input_id = 0):
-        "reads sensor backward position of the door"  
-        valOnOff    = self.GetInputStatus(input_id)
-        ret         = 1 if valOnOff == 'on' else 0
-        return ret     
-            
-    def CloseTestCellDoor(self):
-        "closes the door of the cell"
-        
-        # set output to move forward
-        #self.SetOutput(1, '00')
-        
-        ret = 0
-        t_start = time.time()
-        timeout = self.TIMEOUT_CYLINDER
-        while not ret == 2:  
-            # stage is moving
-            time.sleep(1)  # 
-            
-            # check back poition gain
-            ret     = self.GetTestCellDoorSensor()
-            
-            if (time.time() - t_start) > timeout:
-                self.tprint('Test Cell Door Timeout', 'E')
-                break
-            
-        return ret  
-
-    def OpenTestCellDoor(self):
-        # opens the door of the cell
-        self.tprint('Open Door ...')
-        
-        # set output to move backward
-        #self.SetOutput(1, '00')
-        
-        ret = 0
-        t_start = time.time()
-        timeout = self.TIMEOUT_CYLINDER
-        while not ret == 1:  
-            # stage is moving
-            time.sleep(1)  # 
-            
-            # check back poition gain
-            ret     = self.GetTestCellDoorSensor()
-            
-            if (time.time() - t_start) > timeout:
-                self.tprint('Test Cell Door Timeout', 'E')
-                break
-            
-        return ret       
-            
-    def Home(self):
-        "defines home position for differnet devices"
-        
-        # robot is in home position already
-        
-        # linear stage position
-        ret = self.MoveRobotLinearAxisToHomePosition()
-        if not ret:
-            return ret
-        
-        # table
-        ret = self.MoveTableToHomePosition()
-        if not ret:
-            return ret        
-        
-        # door
-        ret = self.CloseTestCellDoor()
-        if not ret:
-            return ret
-        
-        # counter of the index
-        self.uut_counter = 1
-        
-        return ret
              
 
     def tprint(self, txt='',level='I'):
@@ -567,7 +318,7 @@ class IOController:
     def TestScan(self):
         "scanning all inputs"
         self.Connect()
-        for k in range(8):
+        for k in range(1,9):
             res = self.GetInputStatus(k)
             
         self.Close()

@@ -14,6 +14,7 @@ Usage:
 -----------------------------
  Ver    Date     Who    Descr
 -----------------------------
+0301    03.11.24 UD     Define In/Out
 0202    12.09.24 UD     IO interface
 0201    23.08.24 UD     New robot interface
 0101    11.06.24 UD     Created
@@ -33,6 +34,7 @@ import json
 from threading import Thread
 import time
 import numpy as np
+#from Logger import logger
 
 OS = None
 if sys.platform == "linux":
@@ -52,6 +54,7 @@ SOCKET_ADDRESS = os.getenv("SOCKET_ADDRESS", "192.168.2.13")
 SOCKET_PORT = 65432
 
 #%% Logger
+
 import logging
 logger      = logging.getLogger("robot")
 
@@ -129,7 +132,7 @@ def generate_function(function_name, address):
             self.logger.debug("Not attaching signal handlers")
             print(e)
             
-        self.logger.info(f"{function_name} called with args {args}, {kwargs}")
+        #self.logger.info(f"{function_name} called with args {args}, {kwargs}")
         data = {"function": function_name, "args": args, "kwargs": kwargs}
         sock.sendall(json.dumps(data).encode("utf-8"))
         new_data = sock.recv(8192)
@@ -373,7 +376,7 @@ class Robot:
 #            val = False
 #        else:
 #            val = True
-        self.tprint(val)     
+#        self.tprint(val)     
         return val
     
     def get_digital_io_output(self, InputName = 1):
@@ -388,13 +391,24 @@ class Robot:
         self.tprint(val)    
         return val    
     
-    def set_digital_io_output(self, OutputName = 1, Action = True):
+    def set_digital_io_output(self, OutputName, Action):
+        # Output is not connected
+        if OutputName is None:
+            return False
+        
+        if not isinstance(OutputName, int):
+            return False  
+        
+        if OutputName < 0 or OutputName > 7:
+            return False        
+        
         # r.io("set",io_name="DO_1",target_value=True)
         if isinstance(Action,str):
             Action = True if Action == 'on' else False
             
-        io_set = self.set_digital_output(1,Action)
-        self.tprint(io_set)
+        io_set = self.set_digital_output(OutputName,Action)
+        #self.tprint(io_set)
+        return io_set
 
             
     def get_analog_io(self, input_id = 1):
@@ -466,7 +480,7 @@ class Robot:
     ## -------------------------------     
     def Init(self):
         "compatability"
-        self.robot_info()
+        self.connect()
 
     def Start(self):
         "compatability"
@@ -490,6 +504,7 @@ class Robot:
     
     # ----------------------------
     # robot discrete inputs 
+    # ----------------------------    
     def CheckTableHomePosition(self):
         "check input THP"
         val = self.get_digital_io_input(0)
@@ -512,13 +527,19 @@ class Robot:
         self.tprint(f'CheckGripperPush : {ret}')
         return ret  
     
-    def CheckLinearCylinder(self):
-        "check input LCL"
-        val1 = self.get_digital_io_input(4)
-        val2 = self.get_digital_io_input(5)
-        ret  = val1 > 0.5 and val2 < 0.5
-        self.tprint(f'CheckLinearCylinder : {ret}')
+    def CheckLinearCylinderForward(self):
+        "check linear cylinder forward"
+        val = self.get_digital_io_input(5)
+        ret  = val > 0.5
+        self.tprint(f'CheckLinearCylinderForward : {ret}')
         return ret 
+    
+    def CheckLinearCylinderBackward(self):
+        "check linear cylinder"
+        val1 = self.get_digital_io_input(4)
+        ret  = val1 > 0.5
+        self.tprint(f'CheckLinearCylinderBackward : {ret}')
+        return ret     
     
     def CheckGripperClamp(self):
         "check input GRCL"
@@ -526,10 +547,73 @@ class Robot:
         val2 = self.get_digital_io_input(7)
         ret  = val1 > 0.5 and val2 < 0.5
         self.tprint(f'CheckGripperClamp : {ret}')
+        return ret  
+    
+    # ----------------------------
+    # robot discrete outputs 
+    # ----------------------------  
+    def SetLinearCylinderForward(self):
+        "set linear cylinder forward"
+        val1 = self.set_digital_io_output(0, 'on') # none
+        val2 = self.set_digital_io_output(1, 'off')
+        ret  = val1 and val2 
+        self.tprint(f'SetLinearCylinderForward : {ret}')
+        return ret  
+    
+    def SetLinearCylinderBackward(self):
+        "set linear cylinder backward"
+        val1 = self.set_digital_io_output(0, 'off')
+        val2 = self.set_digital_io_output(1, 'on')
+        ret  = val1 and val2 
+        self.tprint(f'SetLinearCylinderBackward : {ret}')
+        return ret 
+
+    def SetTableDriver(self, on_off = 'off'):
+        "enable one index table"
+        val1 = self.set_digital_io_output(4, on_off)
+        ret  = val1 
+        self.tprint(f'SetTableDriver : {ret}')
         return ret     
 
     # ----------------------------
+    # robot functionality 
+    # ----------------------------  
+    def MoveLinearCylinderForward(self, timeout = 5):
+        "set linear cylinder forward and wait for reaching the position"
+        ret = self.SetLinearCylinderForward() # 
+        ret = self.CheckLinearCylinderForward()
+        t_start = time.time()
+        while not ret:
+            time.sleep(0.2)
+            ret = self.CheckLinearCylinderForward()
+            if time.time() - t_start > timeout:
+                self.tprint('MoveLinearCylinderForward - timeout')
+                break
+        
+        self.tprint(f'MoveLinearCylinderForward : {ret}')
+        return ret 
+
+    def MoveLinearCylinderBackward(self, timeout = 5):
+        "set linear cylinder backward and wait for reaching the position"
+        # timeout = self.TIMEOUT_CYLINDER
+        ret = self.SetLinearCylinderBackward() # 
+        ret = self.CheckLinearCylinderBackward()
+        t_start = time.time()
+        while not ret:
+            time.sleep(0.2)
+            ret = self.CheckLinearCylinderBackward()
+            if time.time() - t_start > timeout:
+                self.tprint('MoveLinearCylinderForward - timeout')
+                break
+        
+        self.tprint(f'MoveLinearCylinderForward : {ret}')
+        return ret 
+         
+
+    # ----------------------------
     # robot motion control
+    # ----------------------------
+    
     def GetHomePosition(self):
         "get default position using home point"
         pose = self.get_point_pose(g_Type = "Position", g_PosName = "Home")
@@ -540,7 +624,7 @@ class Robot:
         pose = self.get_current_pose()
         return pose       
 
-    def CheckHomePosition(self):
+    def CheckRobotHomePosition(self):
         "check the home position"
         pose_home = self.GetHomePosition()
         pose_curr = self.GetCurrentPosition()
@@ -844,18 +928,39 @@ class TestRobotAPI: #unittest.TestCase
 
     def TestFunctionalInputs(self):
         "actual pin names"
-#        ret = self.r.CheckTableHomePosition()
-#        ret = self.r.CheckTableUnloadPosition()
-#        ret = self.r.CheckGripperPush()
-#        ret = self.r.CheckLinearCylinder()
-#        ret = self.r.CheckGripperClamp()
-        
-        for k in range(10):
-            #self.r.CheckTableHomePosition()
-            #self.r.CheckTableUnloadPosition()
-            self.r.CheckLinearCylinder()
-            time.sleep(1)
+        for k in range(3):
+            ret = self.r.CheckTableHomePosition()
+            ret = self.r.CheckTableUnloadPosition()
+            ret = self.r.CheckGripperPush()
+            ret = self.r.CheckLinearCylinder()
+            ret = self.r.CheckGripperClamp()
 
+            time.sleep(1)
+            
+            
+    def TestSetLinearCylinderForwardBackward(self):
+        "linear cylinder"
+        for k in range(3):
+            self.r.SetLinearCylinderForward()
+            time.sleep(3)
+            self.r.SetLinearCylinderBackward()
+            time.sleep(3)
+            
+    def TestMoveLinearCylinderForwardBackward(self):
+        "linear cylinder motion"
+        for k in range(3):
+            self.r.MoveLinearCylinderForward()
+            time.sleep(3)
+            self.r.MoveLinearCylinderBackward()
+            time.sleep(3)
+
+    def TestSetTableDriver(self):
+        "test index table"
+        for k in range(3):
+            self.r.SetTableDriver('on')
+            time.sleep(3)
+            self.r.SetTableDriver('off')
+            time.sleep(3)
        
   
 
@@ -872,4 +977,7 @@ if __name__ == '__main__':
     #tapi.TestGripper() # 
     #tapi.TestIO() # 
     #tapi.TestPathMotion()
-    tapi.TestFunctionalInputs()
+    #tapi.TestFunctionalInputs() # ok
+    #tapi.TestSetLinearCylinderForwardBackward() # ok
+    #tapi.TestMoveLinearCylinderForwardBackward() # ok
+    tapi.TestSetTableDriver()

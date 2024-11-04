@@ -45,32 +45,36 @@ class ControllerIO:
         self.ioc2           = IOController(self, '192.168.2.106', 6000)        
         
         # time out variable
-        self.TIMEOUT_CYLINDER = 10  # sec        
+        self.TIMEOUT_CYLINDER = 10  # sec  
+        
+    ## ------------------------------------  
+    # -- Common Interface ---
+    ## ------------------------------------         
         
     def Init(self):
         ""
-        self.Home()
-        self.tprint('Init')
+        self.Connect()
+        self.Print('Init')
         
     def Connect(self):
         # Create a TCP/IP socket
         try:
             self.ioc1.Connect()
         except:
-            self.tprint('Connection to the controller 1 - fail.','W')
+            self.Print('Connection to the controller 1 - fail.','W')
             return False
         
-        self.ioc1.Close()
+        #self.ioc1.Close()
             
         try:
             self.ioc2.Connect()
         except:
-            self.tprint('Connection to the controller 2 - fail.','W')  
+            self.Print('Connection to the controller 2 - fail.','W')  
             return False
             
-        self.ioc2.Close()
+        #self.ioc2.Close()
             
-        self.tprint('Connected to the controllers.')
+        self.Print('Connected to the controllers.')
         
         return True
     
@@ -85,21 +89,27 @@ class ControllerIO:
         "check if the controller in the home position"
         ret1 = self.ioc1.IsHome()    
         ret2 = self.ioc2.IsHome()          
-        return ret1 and ret2          
-        
+        return ret1 and ret2 
 
+    def GoHome(self):
+        "defines home position for differnet devices"
+        # robot is in home position already
+        self.ioc1.Home()    
+        self.ioc2.Home()  
+        return True         
+        
     def Reset(self):
-        self.tprint('Reset')    
+        self.Print('Reset')    
         #self.ioc1.Start()    
         #self.ioc2.Start()          
 
     def Start(self):
-        self.tprint('Start')    
+        self.Print('Start')    
         self.ioc1.Start()    
         self.ioc2.Start()  
         
     def Stop(self):
-        self.tprint('Stop') 
+        self.Print('Stop') 
         self.ioc1.Stop()    
         self.ioc2.Stop()  
         
@@ -112,67 +122,145 @@ class ControllerIO:
         self.ioc1.CloseConnectionWithController()
         self.ioc2.CloseConnectionWithController()
         
-        self.tprint('Connection with all controllers is closed.')        
+        self.Print('Connection with all controllers is closed.')        
     
-    def Home(self):
-        "defines home position for differnet devices"
-        
-        # robot is in home position already
-        self.ioc1.Home()    
-        self.ioc2.Home()  
-        
-        return True
+ 
     
     ## ------------------------------------  
-    # -- Discrete Input Map ---
+    # -- Discrete Input Map HHC-1 - 105
     ## ------------------------------------ 
-    def CheckDoorsCylinderOpen(self):
-        "check input HHC-1"
+    def CheckEmergencyStop(self):
+        "high is ok - low is emergency stop. return true when emergency stop is pressed"
         val1 = self.ioc1.GetInputStatus(1)
-        val2 = self.ioc1.GetInputStatus(1)
-        ret = val1 > 0.5 and val2 > 0.5
-        self.tprint(f'CheckTableHomePosition : {ret}')
+        ret  = val1 == 'off'
+        self.Print(f'CheckEmergencyStop : {ret}')
+        return ret    
+    
+    def CheckLockCylinder(self):
+        "returns : 1 - locked, 0 - unlocked. "
+        val1 = self.ioc1.GetInputStatus(2)
+        ret  = val1 == 'on'
+        self.Print(f'CheckLockCylinder : {ret}')
+        return ret    
+    
+    def CheckCableInPlace(self):
+        "returns : 1 - in place, 0 - not in place. "
+        val1 = self.ioc1.GetInputStatus(2)
+        ret  = val1 == 'on'
+        self.Print(f'CheckCableInPlace : {ret}')
+        return ret     
+    
+    def CheckTwoButtonPush(self):
+        "check if 2 buttons are pushed by human opeartor - return true"
+        
+        ret1 = self.ioc1.GetInputStatus(4)   
+        ret2 = self.ioc1.GetInputStatus(5) 
+
+        ret    = (ret1  == 'on')  and (ret2 == 'on')
+        self.Print('Pressed %s and %s' %(str(ret1), str(ret2)))
+        return ret    
+
+    def CheckLockConnectorOpen(self):
+        "returns : 1 - open, 0 - not open. "
+        val1 = self.ioc1.GetInputStatus(6)
+        ret  = val1 == 'on'
+        self.Print(f'CheckLockConnectorOpen : {ret}')
+        return ret  
+    
+    def CheckLockConnectorClose(self):
+        "returns : 1 - close, 0 -  open. "
+        val1 = self.ioc1.GetInputStatus(7)
+        ret  = val1 == 'on'
+        self.Print(f'CheckLockConnectorClose : {ret}')
+        return ret    
+
+    def CheckAirSupply(self):
+        "check if air is in - 1 - ok"
+        val = self.ioc1.GetInput(8) 
+        ret = val == 'on'  # 1 is ok
+        self.Print(f'CheckAirSupply : {ret}')
+        return ret    
+    
+    
+    ## ------------------------------------  
+    # -- Discrete Input Map HHC-2 - 106
+    ## ------------------------------------     
+    def CheckDoorsCylinderOpen(self):
+        "return True if door open"
+        val1 = self.ioc2.GetInputStatus(1)
+        ret = val1 == 'on'
+        self.Print(f'CheckDoorsCylinderOpen : {ret}')
         return ret
-
+    
+    def CheckDoorsCylinderClose(self):
+        "return True if door close"
+        val2 = self.ioc2.GetInputStatus(2)
+        ret = val2 == 'on'
+        self.Print(f'CheckDoorsCylinderClose : {ret}')
+        return ret
+    
+    def CheckPartInLoadPosition(self):
+        "return True if part in load position is present"
+        val1 = self.ioc2.GetInputStatus(3)
+        ret = val1 == 'on'
+        self.Print(f'CheckPartInLoadPosition : {ret}')
+        return ret   
+    
+    def CheckTableIndex(self):
+        "return 1 if table completed the index 0-moving"
+        val1    = self.ioc2.GetInputStatus(4)
+        ret     = val1 == 'on'
+        self.Print(f'CheckTableIndex : {ret}')
+        return ret    
     
     ## ------------------------------------  
-    # -- Table Control ---
-    ## ------------------------------------        
-    def SetTableHome(self):
-        # go to home position
-        self.tprint('Starting Homing ...')
-        
-        home_sensor = False
-        while not home_sensor:
-             
-            # read home sensor
-            home_sensor = True
-        
-        return True
-        
-    def GetTableIndex(self):
-        # go to home position
-        self.tprint('Current table position ...')
-        return True
-    
-    def NextTableIndex(self, increment = 1):
-        # go to next position
-        self.tprint('Next table position ...')
-        
-        # two stations
-        self.MoveTableIndex()
-        self.MoveTableIndex()
+    # -- Discrete Output Map HHC-1 - 105
+    ## ------------------------------------ 
+    def SetDoorCylinderOpen(self):
+        "set cylinder door open by 1-on,2-off"
+        val1 = self.ioc1.SetOutput(1, 'on')
+        val2 = self.ioc1.SetOutput(2, 'off')
+        ret  = (val1 == 'on') and (val2 == 'off')
+        self.Print(f'SetDoorCylinderOpen : {ret}')
+        return ret   
 
-        return True
+    def SetDoorCylinderClose(self):
+        "set cylinder door close by 2-on,1-off"
+        val1 = self.ioc1.SetOutput(1, 'off')
+        val2 = self.ioc1.SetOutput(2, 'on')
+        ret  = (val1 == 'off') and (val2 == 'on')
+        self.Print(f'SetDoorCylinderClose : {ret}')
+        return ret     
     
-    ## ------------------------------------  
-    # -- Tester Control ---
-    ## ------------------------------------        
+    def SetLockCylinderConnectorOn(self):
+        "set cylinder connector open"
+        val1 = self.ioc1.SetOutput(3, 'on')
+        ret  = (val1 == 'on') 
+        self.Print(f'SetLockCylinderConnectorOn : {ret}')
+        return ret      
+    
+    def SetLockCylinderConnectorOff(self):
+        "set cylinder connector close "
+        val1 = self.ioc1.SetOutput(3, 'off')
+        ret  = (val1 == 'off') 
+        self.Print(f'SetLockCylinderConnectorOff : {ret}')
+        return ret    
 
-    def BuhnaIsOpen(self):
-        # buhna is open
-        self.tprint('Open Buhna ...')
-        return True     
+    def SetLockCylinderOn(self):
+        "set cylinder lock open"
+        val1 = self.ioc1.SetOutput(4, 'on')
+        ret  = (val1 == 'on') 
+        self.Print(f'SetLockCylinderOn : {ret}')
+        return ret      
+    
+    def SetLockCylinderOff(self):
+        "set cylinder lock close "
+        val1 = self.ioc1.SetOutput(4, 'off')
+        ret  = (val1 == 'off') 
+        self.Print(f'SetLockCylinderOff : {ret}')
+        return ret     
+
+  
 
     ## ------------------------------------  
     # -- IO Control ---
@@ -180,34 +268,22 @@ class ControllerIO:
 
     def Status(self):
         self.GetInputStatus()
-        self.tprint(f'Checking status')
+        self.Print(f'Checking status')
         
         
     def GetInfo(self):
         # get specific bit info
         val = self.GetInputStatus(0)
-        self.tprint(f'IO received {val}')
+        self.Print(f'IO received {val}')
         
     def SetInfo(self):
         # get specific bit info  
         addr    = 0
         val     = 1
         self.ioc.SetOutput(addr,val)
-        self.tprint(f'IO sending value {val} to {addr}')
+        self.Print(f'IO sending value {val} to {addr}')
         
-    def CheckAirSupply(self):
-        "check if air is in"
-         
-        val = self.ioc2.GetInput(3) 
-        ret = val > 0.5  # 1 is ok
-        return ret
-    
-    def CheckEmergencyStop(self):
-        "check if emergency is pressed"
-        
-        # set output to move backward
-        #self.SetOutput(1, '00')   
-        return True 
+
     
     def CheckUUTInPlaceLoadPosition(self):
         "check if UUT in place for human"
@@ -219,70 +295,120 @@ class ControllerIO:
         
         return True 
     
-    def CheckTwoButtonPush(self):
-        "check if 2 buttons are pushed by human opeartor"
-        
-        ret1 = self.ioc1.GetInput(4)   
-        ret2 = self.ioc1.GetInput(5) 
-        
-        self.tprint('Pressed %s and %s' %(str(ret1), str(ret2)))
-        
-        ret    = ret1  > 0.5 and ret2 > 0.5
-        return ret    
 
+
+            
+    def MoveRobotLinearAxisToHomePosition(self):
+        "linear axis to home position"
         
-    def LinearAxisForwardPosition(self):
-        "reads sensor forward position of the linear state"
+        ret     = self.MoveRobotLinearAxisBackward()
+        if ret != 2:
+            self.Print('Timeout  - can not reach linear axis home position','E')
+            
+    def GetTestCellDoorForwardPosition(self):
+        "reads sensor forward position of the door"
         
         return True
         
-    def LinearAxisBackwardPosition(self):
-        "reads sensor backward position of the linear state"  
+    def GetTestCellDoorBackwardPosition(self):
+        "reads sensor backward position of the door"  
         
-        return True
-        
-    def GetRobotLinearAxisPosition(self):
+        return True            
+            
+    def GetTestCellDoorSensor(self):
         """ 
-        
-        linear stage
-        
+        door position piston
         Returns:
-            ret : 0 - not defined, 1 - forward position, 2 - backward position
+            ret : 0 - not defined, 1 - closed, 2 - open
         
         """
         
         ret = 0
-        if self.LinearAxisForwardPosition():
+        if self.GetTestCellDoorForwardPosition():
             ret = 1
-        elif self.LinearAxisBackwardPosition():
+        elif self.GetTestCellDoorBackwardPosition():
             ret = 2
         
-        return ret
+        return ret        
+            
+    def CloseTestCellDoor(self):
+        "closes the door of the cell"
+        
+        # set output to move forward
+        #self.SetOutput(1, '00')
+        
+        ret = 0
+        t_start = time.time()
+        timeout = self.TIMEOUT_CYLINDER
+        while not ret == 2:  
+            # stage is moving
+            time.sleep(1)  # 
+            
+            # check back poition gain
+            ret     = self.GetTestCellDoorSensor()
+            
+            if (time.time() - t_start) > timeout:
+                self.Print('Test Cell Door Timeout', 'E')
+                break
+            
+        return ret  
+
+    def OpenTestCellDoor(self):
+        # opens the door of the cell
+        self.Print('Open Door ...')
+        
+        # set output to move backward
+        #self.SetOutput(1, '00')
+        
+        ret = 0
+        t_start = time.time()
+        timeout = self.TIMEOUT_CYLINDER
+        while not ret == 1:  
+            # stage is moving
+            time.sleep(1)  # 
+            
+            # check back poition gain
+            ret     = self.GetTestCellDoorSensor()
+            
+            if (time.time() - t_start) > timeout:
+                self.Print('Test Cell Door Timeout', 'E')
+                break
+            
+        return ret       
+            
+#    def CheckUUTInPlaceLoadPosition(self):
+#        "check if UUT in place for human"
+#        
+#        return True
+#    
+#    def CheckUUTInPlaceRobotPosition(self):
+#        "check if UUT in place for robot"
+#        
+#        return True 
+#    
+#    def CheckTwoButtonPush(self):
+#        "check if 2 buttons are pushed by human opeartor"
+#        
+#        ret1 = self.GetInput(1)    
+#        ret2 = self.GetInput(2) 
+#        
+#        self.tprint('Preassed %d and %d' %(ret1, ret2))
+#        
+#        ret    = ret1 and ret2
+#        return ret    
+#        
+#    def Disconnect(self):
+#        # disonnecteing
+#        self.CloseConnectionWithController()  
+        
+        
+
         
     def CheckTableInHomePosition(self):
         "return true only when in IO sens the home position : Table Home Position Sensor"
         
         return True
-    
-    
-    def SetTableIndex(self):
-        "moves the table for one index"
-        
-        return True
-    
-    def WaitForTableIndexDone(self):
-        "the table has reached index poxition and finished to move"
-        
-        return True
-    
-    def MoveTableIndex(self):
-        "rotates table by one position"
-        " the table has actual 12 statoins but totally is build for 24 indexes"
-        self.SetTableIndex()
-        ret = False
-        while not ret:            
-            ret = self.WaitForTableIndexDone()        
-        return True    
+
         
     def MoveTableToHomePosition(self):
         "rotate table to home position"
@@ -342,77 +468,41 @@ class ControllerIO:
         if ret != 2:
             self.tprint('Timeout  - can not reach linear axis home position','E')
             
-    def GetTestCellDoorForwardPosition(self):
-        "reads sensor forward position of the door"
-        
-        return True
-        
-    def GetTestCellDoorBackwardPosition(self):
-        "reads sensor backward position of the door"  
-        
-        return True            
-            
-    def GetTestCellDoorSensor(self):
-        """ 
-        door position piston
-        Returns:
-            ret : 0 - not defined, 1 - closed, 2 - open
-        
-        """
-        
-        ret = 0
-        if self.GetTestCellDoorForwardPosition():
-            ret = 1
-        elif self.GetTestCellDoorBackwardPosition():
-            ret = 2
-        
-        return ret        
-            
-    def CloseTestCellDoor(self):
-        "closes the door of the cell"
-        
-        # set output to move forward
-        #self.SetOutput(1, '00')
-        
-        ret = 0
-        t_start = time.time()
-        timeout = self.TIMEOUT_CYLINDER
-        while not ret == 2:  
-            # stage is moving
-            time.sleep(1)  # 
-            
-            # check back poition gain
-            ret     = self.GetTestCellDoorSensor()
-            
-            if (time.time() - t_start) > timeout:
-                self.tprint('Test Cell Door Timeout', 'E')
-                break
-            
-        return ret  
+  
 
-    def OpenTestCellDoor(self):
-        # opens the door of the cell
-        self.tprint('Open Door ...')
+    def GetInput10(self, input_id = 0):
+        "reads sensor backward position of the door"  
+        valOnOff    = self.GetInputStatus(input_id)
+        ret         = 1 if valOnOff == 'on' else 0
+        return ret     
+            
+            
+    def GoHomeSM(self):
+        "defines home position for differnet devices"
         
-        # set output to move backward
-        #self.SetOutput(1, '00')
+        # robot is in home position already
         
-        ret = 0
-        t_start = time.time()
-        timeout = self.TIMEOUT_CYLINDER
-        while not ret == 1:  
-            # stage is moving
-            time.sleep(1)  # 
-            
-            # check back poition gain
-            ret     = self.GetTestCellDoorSensor()
-            
-            if (time.time() - t_start) > timeout:
-                self.tprint('Test Cell Door Timeout', 'E')
-                break
-            
-        return ret       
-            
+        # linear stage position
+        ret = self.MoveRobotLinearAxisToHomePosition()
+        if not ret:
+            return ret
+        
+        # table
+        ret = self.MoveTableToHomePosition()
+        if not ret:
+            return ret        
+        
+        # door
+        ret = self.CloseTestCellDoor()
+        if not ret:
+            return ret
+        
+        # counter of the index
+        self.uut_counter = 1
+        
+        return ret
+
+   
 
              
 
@@ -433,14 +523,13 @@ class ControllerIO:
         
     def Test(self):
         #self.Connect()
-        
         # turn on relay 1 with no delay
         self.ioc1.Test()    
         self.ioc2.Test()  
         
         self.Close()   
         
-    def CheckStatusIO(self):
+    def TestCheckStatusIO(self):
         #self.Connect()
         
         # turn on relay 1 with no delay
@@ -449,15 +538,75 @@ class ControllerIO:
             self.ioc2.TestScan()  
             #winsound.Beep(frequency = 2500+500*k, duration = 1000)
             time.sleep(1)
+            
+    def TestCheckEmegencyStop(self):
         
-        #self.Close()         
+        self.Print('Waiting for emergency press...')
+        self.Connect()
+        while True:
+            ret = self.CheckEmergencyStop()
+            if ret:
+                break
+        self.Print('Emergency press detected')            
+        self.Close()    
+          
+    def TestCheckTwoButtonPush(self):
+        
+        self.Print('Waiting for two button press...')
+        self.Connect()
+        while True:
+            ret = self.CheckTwoButtonPush()
+            if ret:
+                break
+        self.Print('Button press detected')            
+        self.Close()  
+
+    def TestSetDoorCylinderOpen(self):
+        self.Print('Testing door...')
+        self.Connect()
+        for k in range(3):
+            self.SetDoorCylinderOpen()
+            time.sleep(3)
+            #self.SetDoorCylinderClose()
+            time.sleep(3)
+        #self.Print('Button press detected')            
+        self.Close()                 
+        
+    def TestSetLockCylinderConnectorOnOff(self):
+        self.Print('Testing cylinder...')
+        self.Connect()
+        for k in range(3):
+            self.SetLockCylinderConnectorOn()
+            time.sleep(3)
+            self.SetLockCylinderConnectorOff()
+            time.sleep(3)
+        #self.Print('Button press detected')            
+        self.Close()   
+
+    def TestSetLockCylinderOnOff(self):
+        self.Print('Testing cylinder...')
+        self.Connect()
+        for k in range(3):
+            self.SetLockCylinderOn()
+            time.sleep(3)
+            self.SetLockCylinderOff()
+            time.sleep(3)
+        #self.Print('Button press detected')            
+        self.Close()          
+        
+     
         
 if __name__ == '__main__':
     c = ControllerIO()
     #c.Connect()
     #c.Test()
     #c.CheckTwoButtonPush()
-    c.CheckStatusIO()
+    #c.CheckStatusIO()
+    #c.CheckEmegencyStop()
+    #c.TestCheckTwoButtonPush()
+    #c.TestSetDoorCylinderOpen() # ok
+    #c.TestSetLockCylinderConnectorOnOff() # ok
+    c.TestSetLockCylinderOnOff()
         
         
 
