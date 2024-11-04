@@ -21,11 +21,12 @@ Usage:
 
 """
 
-import socket
+#import socket
 #from queue import Queue
-from threading import Thread
+#from threading import Thread
 import time
 from disc.ControllerHHC import IOController
+#import winsound
 
 #%% Logger
 import logging
@@ -41,7 +42,7 @@ class ControllerIO:
         self.ioc1           = IOController(self, '192.168.2.105', 5000)
         
         # connectio to IO
-        self.ioc2           = IOController(self, '192.168.2.106', 5000)        
+        self.ioc2           = IOController(self, '192.168.2.106', 6000)        
         
         # time out variable
         self.TIMEOUT_CYLINDER = 10  # sec        
@@ -49,14 +50,14 @@ class ControllerIO:
     def Init(self):
         ""
         self.Home()
-        self.Print('Init')
+        self.tprint('Init')
         
     def Connect(self):
         # Create a TCP/IP socket
         try:
             self.ioc1.Connect()
         except:
-            self.Print('Connection to the controller 1 - fail.','W')
+            self.tprint('Connection to the controller 1 - fail.','W')
             return False
         
         self.ioc1.Close()
@@ -64,12 +65,12 @@ class ControllerIO:
         try:
             self.ioc2.Connect()
         except:
-            self.Print('Connection to the controller 2 - fail.','W')  
+            self.tprint('Connection to the controller 2 - fail.','W')  
             return False
             
         self.ioc2.Close()
             
-        self.Print('Connected to the controllers.')
+        self.tprint('Connected to the controllers.')
         
         return True
     
@@ -88,17 +89,17 @@ class ControllerIO:
         
 
     def Reset(self):
-        self.Print('Reset')    
+        self.tprint('Reset')    
         #self.ioc1.Start()    
         #self.ioc2.Start()          
 
     def Start(self):
-        self.Print('Start')    
+        self.tprint('Start')    
         self.ioc1.Start()    
         self.ioc2.Start()  
         
     def Stop(self):
-        self.Print('Stop') 
+        self.tprint('Stop') 
         self.ioc1.Stop()    
         self.ioc2.Stop()  
         
@@ -111,7 +112,7 @@ class ControllerIO:
         self.ioc1.CloseConnectionWithController()
         self.ioc2.CloseConnectionWithController()
         
-        self.Print('Connection with all controllers is closed.')        
+        self.tprint('Connection with all controllers is closed.')        
     
     def Home(self):
         "defines home position for differnet devices"
@@ -123,11 +124,23 @@ class ControllerIO:
         return True
     
     ## ------------------------------------  
+    # -- Discrete Input Map ---
+    ## ------------------------------------ 
+    def CheckDoorsCylinderOpen(self):
+        "check input HHC-1"
+        val1 = self.ioc1.GetInputStatus(1)
+        val2 = self.ioc1.GetInputStatus(1)
+        ret = val1 > 0.5 and val2 > 0.5
+        self.tprint(f'CheckTableHomePosition : {ret}')
+        return ret
+
+    
+    ## ------------------------------------  
     # -- Table Control ---
     ## ------------------------------------        
     def SetTableHome(self):
         # go to home position
-        self.Print('Starting Homing ...')
+        self.tprint('Starting Homing ...')
         
         home_sensor = False
         while not home_sensor:
@@ -139,12 +152,12 @@ class ControllerIO:
         
     def GetTableIndex(self):
         # go to home position
-        self.Print('Current table position ...')
+        self.tprint('Current table position ...')
         return True
     
     def NextTableIndex(self, increment = 1):
         # go to next position
-        self.Print('Next table position ...')
+        self.tprint('Next table position ...')
         
         # two stations
         self.MoveTableIndex()
@@ -158,7 +171,7 @@ class ControllerIO:
 
     def BuhnaIsOpen(self):
         # buhna is open
-        self.Print('Open Buhna ...')
+        self.tprint('Open Buhna ...')
         return True     
 
     ## ------------------------------------  
@@ -173,14 +186,14 @@ class ControllerIO:
     def GetInfo(self):
         # get specific bit info
         val = self.GetInputStatus(0)
-        self.Print(f'IO received {val}')
+        self.tprint(f'IO received {val}')
         
     def SetInfo(self):
         # get specific bit info  
         addr    = 0
         val     = 1
         self.ioc.SetOutput(addr,val)
-        self.Print(f'IO sending value {val} to {addr}')
+        self.tprint(f'IO sending value {val} to {addr}')
         
     def CheckAirSupply(self):
         "check if air is in"
@@ -212,7 +225,7 @@ class ControllerIO:
         ret1 = self.ioc1.GetInput(4)   
         ret2 = self.ioc1.GetInput(5) 
         
-        self.Print('Pressed %s and %s' %(str(ret1), str(ret2)))
+        self.tprint('Pressed %s and %s' %(str(ret1), str(ret2)))
         
         ret    = ret1  > 0.5 and ret2 > 0.5
         return ret    
@@ -295,7 +308,7 @@ class ControllerIO:
             ret     = self.GetRobotLinearAxisPosition()
             
             if (time.time() - t_start) > timeout:
-                self.Print('Move Backward Timeout', 'E')
+                self.tprint('Move Backward Timeout', 'E')
                 break
             
         return ret    
@@ -317,7 +330,7 @@ class ControllerIO:
             ret     = self.GetRobotLinearAxisPosition()
             
             if (time.time() - t_start) > timeout:
-                self.Print('Move Backward Timeout', 'E')
+                self.tprint('Move Backward Timeout', 'E')
                 break
             
         return ret          
@@ -327,7 +340,7 @@ class ControllerIO:
         
         ret     = self.MoveRobotLinearAxisBackward()
         if ret != 2:
-            self.Print('Timeout  - can not reach linear axis home position','E')
+            self.tprint('Timeout  - can not reach linear axis home position','E')
             
     def GetTestCellDoorForwardPosition(self):
         "reads sensor forward position of the door"
@@ -372,14 +385,14 @@ class ControllerIO:
             ret     = self.GetTestCellDoorSensor()
             
             if (time.time() - t_start) > timeout:
-                self.Print('Test Cell Door Timeout', 'E')
+                self.tprint('Test Cell Door Timeout', 'E')
                 break
             
         return ret  
 
     def OpenTestCellDoor(self):
         # opens the door of the cell
-        self.Print('Open Door ...')
+        self.tprint('Open Door ...')
         
         # set output to move backward
         #self.SetOutput(1, '00')
@@ -395,7 +408,7 @@ class ControllerIO:
             ret     = self.GetTestCellDoorSensor()
             
             if (time.time() - t_start) > timeout:
-                self.Print('Test Cell Door Timeout', 'E')
+                self.tprint('Test Cell Door Timeout', 'E')
                 break
             
         return ret       
@@ -431,8 +444,11 @@ class ControllerIO:
         #self.Connect()
         
         # turn on relay 1 with no delay
-        self.ioc1.TestScan()    
-        self.ioc2.TestScan()  
+        for k in range(1):
+            self.ioc1.TestScan()    
+            self.ioc2.TestScan()  
+            #winsound.Beep(frequency = 2500+500*k, duration = 1000)
+            time.sleep(1)
         
         #self.Close()         
         

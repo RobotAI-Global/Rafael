@@ -51,7 +51,7 @@ class IOController:
     def Init(self):
         
         self.uut_counter   = 0
-        self.Print('Init')
+        self.tprint('Init')
         
         
     def Connect(self):
@@ -60,7 +60,7 @@ class IOController:
         
         # connect to the server, if result = 0 connection is OK
         result              = self.client_socket.connect((self.ServerIp, self.ServerPort))
-        self.Print('Connected to the controller.')
+        self.tprint('Connected to the controller.')
         
         return result
     
@@ -79,12 +79,12 @@ class IOController:
     def SendDataToController(self, cCommand):
         # Send data to the server       
         self.client_socket.sendall(cCommand.encode())
-        #self.Print('Message sent to the controller:', cCommand)        
+        #self.tprint('Message sent to the controller:', cCommand)        
     
     def ReciveDataFromController(self, cCommand, cNumber):
         # Receive data from the server
         self.data = self.client_socket.recv(1024).decode()
-        #self.Print('Message received from the controller:', self.data)       
+        #self.tprint('Message received from the controller:', self.data)       
 
         if cCommand == 'input':
             # Take only the data from the return string 'input00000000'
@@ -113,9 +113,9 @@ class IOController:
         self.SendDataToController('input')
         # get input status
         res = self.ReciveDataFromController('input', iNumber) # self.rValue
-        #self.Print('GetInputStatus : %s' %str(self.rValue))
+        #self.tprint('GetInputStatus : %s' %str(self.rValue))
         
-        self.Print(f'Input {iNumber} : {res}')
+        self.tprint(f'Input {iNumber} : {res}')
         return res
     
     def SetOutput(self, iNumber, sDelay):
@@ -139,7 +139,7 @@ class IOController:
         # get relay status
         self.rValue = self.ReciveDataFromController('output', iNumber)
         
-        self.Print('SetOutput : %s' %str(iNumber))
+        self.tprint('SetOutput : %s' %str(iNumber))
         return self.rValue
     
     def ResetOutput(self, iNumber):
@@ -157,13 +157,13 @@ class IOController:
         # get relay status
         self.rValue = self.ReciveDataFromController('output', iNumber)
         
-        self.Print('ResetOutput : %s' %str(iNumber))
+        self.tprint('ResetOutput : %s' %str(iNumber))
         return self.rValue
         
     def CloseConnectionWithController(self):
         # close the connection
         self.client_socket.close()
-        self.Print('Connection with the controller closed.')
+        self.tprint('Connection with the controller closed.')
         
     def Close(self):
         "dublicated"
@@ -192,11 +192,11 @@ class IOController:
         return True 
     
     def Start(self):
-        self.Print('Start')    
+        self.tprint('Start')    
         self.RunThread()
         
     def Stop(self):
-        self.Print('Stop') 
+        self.tprint('Stop') 
         self.stopTask = True
         self.ts.join()          
     
@@ -205,7 +205,7 @@ class IOController:
     ## ------------------------------------        
     def SetTableHome(self):
         # go to home position
-        self.Print('Starting Homing ...')
+        self.tprint('Starting Homing ...')
         
         home_sensor = False
         while not home_sensor:
@@ -217,12 +217,12 @@ class IOController:
         
     def GetTableIndex(self):
         # go to home position
-        self.Print('Current table position ...')
+        self.tprint('Current table position ...')
         return True
     
     def NextTableIndex(self, increment = 1):
         # go to next position
-        self.Print('Next table position ...')
+        self.tprint('Next table position ...')
         
         # two stations
         self.MoveTableIndex()
@@ -240,7 +240,7 @@ class IOController:
     
     def BuhnaIsOpen(self):
         # buhna is open
-        self.Print('Open Buhna ...')
+        self.tprint('Open Buhna ...')
         return True     
     
     
@@ -259,19 +259,19 @@ class IOController:
         # get specific bit info
         addr = 0
         self.ResetOutput(addr)
-        self.Print(f'IO reset {addr}') 
+        self.tprint(f'IO reset {addr}') 
         
     def GetInfo(self):
         # get specific bit info
         val = self.GetInputStatus(0)
-        self.Print(f'IO received {val}')
+        self.tprint(f'IO received {val}')
         
     def SetInfo(self):
         # get specific bit info  
         addr = 0
         val = 1
         self.ioc.SetOutput(addr,val)
-        self.Print(f'IO sending value {val} to {addr}')
+        self.tprint(f'IO sending value {val} to {addr}')
         
     def CheckAirSupply(self):
         "check if air is in"
@@ -303,7 +303,7 @@ class IOController:
         ret1 = self.GetInput(1)    
         ret2 = self.GetInput(2) 
         
-        self.Print('Preassed %d and %d' %(ret1, ret2))
+        self.tprint('Preassed %d and %d' %(ret1, ret2))
         
         ret    = ret1 and ret2
         return ret    
@@ -390,7 +390,7 @@ class IOController:
             ret     = self.GetRobotLinearAxisPosition()
             
             if (time.time() - t_start) > timeout:
-                self.Print('Move Backward Timeout', 'E')
+                self.tprint('Move Backward Timeout', 'E')
                 break
             
         return ret    
@@ -412,7 +412,7 @@ class IOController:
             ret     = self.GetRobotLinearAxisPosition()
             
             if (time.time() - t_start) > timeout:
-                self.Print('Move Backward Timeout', 'E')
+                self.tprint('Move Backward Timeout', 'E')
                 break
             
         return ret          
@@ -422,7 +422,7 @@ class IOController:
         
         ret     = self.MoveRobotLinearAxisBackward()
         if ret != 2:
-            self.Print('Timeout  - can not reach linear axis home position','E')
+            self.tprint('Timeout  - can not reach linear axis home position','E')
             
     def GetTestCellDoorForwardPosition(self):
         "reads sensor forward position of the door"
@@ -473,14 +473,14 @@ class IOController:
             ret     = self.GetTestCellDoorSensor()
             
             if (time.time() - t_start) > timeout:
-                self.Print('Test Cell Door Timeout', 'E')
+                self.tprint('Test Cell Door Timeout', 'E')
                 break
             
         return ret  
 
     def OpenTestCellDoor(self):
         # opens the door of the cell
-        self.Print('Open Door ...')
+        self.tprint('Open Door ...')
         
         # set output to move backward
         #self.SetOutput(1, '00')
@@ -496,7 +496,7 @@ class IOController:
             ret     = self.GetTestCellDoorSensor()
             
             if (time.time() - t_start) > timeout:
-                self.Print('Test Cell Door Timeout', 'E')
+                self.tprint('Test Cell Door Timeout', 'E')
                 break
             
         return ret       
@@ -527,7 +527,7 @@ class IOController:
         return ret
              
 
-    def Print(self, txt='',level='I'):
+    def tprint(self, txt='',level='I'):
         
         ptxt = '%s : %s' %(self.ServerIp,txt)
         if level == 'I':
@@ -548,19 +548,19 @@ class IOController:
         
         # turn on relay 1 with no delay
         self.rStatus = self.SetOutput(1, '00')
-        self.Print('output 1:', self.rStatus)
+        self.tprint('output 1:', self.rStatus)
         
         # turn off relay 1 with no delay
         self.rStatus = self.ResetOutput(1)
-        self.Print('output 1:', self.rStatus)
+        self.tprint('output 1:', self.rStatus)
         
         # turn on relay 1 with delay of 5 sec
         self.rStatus = self.SetOutput(1, '05')
-        self.Print('output 1:', self.rStatus)
+        self.tprint('output 1:', self.rStatus)
         
         # get input 1 
         self.rStatus = self.GetInputStatus(1)
-        self.Print('input 1:', self.rStatus)             
+        self.tprint('input 1:', self.rStatus)             
         
         self.CloseConnectionWithController()   
         

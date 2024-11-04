@@ -487,7 +487,49 @@ class Robot:
         "check default position"
         pose = self.get_pose_euler()
         return True
+    
+    # ----------------------------
+    # robot discrete inputs 
+    def CheckTableHomePosition(self):
+        "check input THP"
+        val = self.get_digital_io_input(0)
+        ret = val > 0.5
+        self.tprint(f'CheckTableHomePosition : {ret}')
+        return ret
+    
+    def CheckTableUnloadPosition(self):
+        "check input PIPL"
+        val = self.get_digital_io_input(1)
+        ret = val > 0.5
+        self.tprint(f'CheckTableUnloadPosition : {ret}')
+        return ret  
+    
+    def CheckGripperPush(self):
+        "check input GRHP"
+        val1 = self.get_digital_io_input(2)
+        val2 = self.get_digital_io_input(3)
+        ret  = val1 > 0.5 and val2 < 0.5
+        self.tprint(f'CheckGripperPush : {ret}')
+        return ret  
+    
+    def CheckLinearCylinder(self):
+        "check input LCL"
+        val1 = self.get_digital_io_input(4)
+        val2 = self.get_digital_io_input(5)
+        ret  = val1 > 0.5 and val2 < 0.5
+        self.tprint(f'CheckLinearCylinder : {ret}')
+        return ret 
+    
+    def CheckGripperClamp(self):
+        "check input GRCL"
+        val1 = self.get_digital_io_input(6)
+        val2 = self.get_digital_io_input(7)
+        ret  = val1 > 0.5 and val2 < 0.5
+        self.tprint(f'CheckGripperClamp : {ret}')
+        return ret     
 
+    # ----------------------------
+    # robot motion control
     def GetHomePosition(self):
         "get default position using home point"
         pose = self.get_point_pose(g_Type = "Position", g_PosName = "Home")
@@ -798,6 +840,22 @@ class TestRobotAPI: #unittest.TestCase
         self.r.MovePathPoints()
                 
         print('TestPathMotion')
+        
+
+    def TestFunctionalInputs(self):
+        "actual pin names"
+#        ret = self.r.CheckTableHomePosition()
+#        ret = self.r.CheckTableUnloadPosition()
+#        ret = self.r.CheckGripperPush()
+#        ret = self.r.CheckLinearCylinder()
+#        ret = self.r.CheckGripperClamp()
+        
+        for k in range(10):
+            #self.r.CheckTableHomePosition()
+            #self.r.CheckTableUnloadPosition()
+            self.r.CheckLinearCylinder()
+            time.sleep(1)
+
        
   
 
@@ -813,4 +871,5 @@ if __name__ == '__main__':
     #tapi.TestSwitchTool() # 
     #tapi.TestGripper() # 
     #tapi.TestIO() # 
-    tapi.TestPathMotion()
+    #tapi.TestPathMotion()
+    tapi.TestFunctionalInputs()
