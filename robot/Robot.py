@@ -521,11 +521,17 @@ class Robot:
     
     def CheckGripperPush(self):
         "check input GRHP"
-        val1 = self.get_digital_io_input(2)
-        val2 = self.get_digital_io_input(3)
-        ret  = val1 > 0.5 and val2 < 0.5
+        val1 = self.get_digital_io_input(3)
+        ret  = val1 > 0.5 
         self.tprint(f'CheckGripperPush : {ret}')
         return ret  
+    
+    def CheckGripperPull(self):
+        "check input GRHP"
+        val1 = self.get_digital_io_input(2)
+        ret  = val1 > 0.5 
+        self.tprint(f'CheckGripperPull : {ret}')
+        return ret     
     
     def CheckLinearCylinderForward(self):
         "check linear cylinder forward"
@@ -541,13 +547,19 @@ class Robot:
         self.tprint(f'CheckLinearCylinderBackward : {ret}')
         return ret     
     
-    def CheckGripperClamp(self):
+    def CheckGripperClampClose(self):
+        "check input GRCL"
+        val1 = self.get_digital_io_input(7)
+        ret  = val1 > 0.5
+        self.tprint(f'CheckGripperClampClose : {ret}')
+        return ret  
+    
+    def CheckGripperClampOpen(self):
         "check input GRCL"
         val1 = self.get_digital_io_input(6)
-        val2 = self.get_digital_io_input(7)
-        ret  = val1 > 0.5 and val2 < 0.5
-        self.tprint(f'CheckGripperClamp : {ret}')
-        return ret  
+        ret  = val1 > 0.5 
+        self.tprint(f'CheckGripperClampOpen : {ret}')
+        return ret     
     
     # ----------------------------
     # robot discrete outputs 
@@ -573,10 +585,54 @@ class Robot:
         val1 = self.set_digital_io_output(4, on_off)
         ret  = val1 
         self.tprint(f'SetTableDriver : {ret}')
+        return ret  
+    
+    def SetGripperClampOpen(self):
+        "open clamp/gripper"
+        val1 = self.set_digital_io_output(4, 'off')
+        val2 = self.set_digital_io_output(5, 'on')
+        ret  = val1 and val2 
+        self.tprint(f'SetGripperClampOpen : {ret}')
+        return ret    
+    
+    def SetGripperClampClose(self):
+        "close clamp/gripper"
+        val1 = self.set_digital_io_output(4, 'on')
+        val2 = self.set_digital_io_output(5, 'off')
+        ret  = val1 and val2 
+        self.tprint(f'SetGripperClampClose : {ret}')
+        return ret 
+
+    def SetGripperCoverPush(self):
+        "open cover "
+        val1 = self.set_digital_io_output(6, 'on')
+        ret  = val1  
+        self.tprint(f'SetGripperCoverPush : {ret}')
+        return ret    
+    
+    def SetGripperCoverPull(self):
+        "open cover pull"
+        val1 = self.set_digital_io_output(6, 'off')
+        ret  = val1  
+        self.tprint(f'SetGripperCoverPull : {ret}')
+        return ret  
+    
+    def SetGripperMembraneOn(self):
+        "open cover "
+        val1 = self.set_digital_io_output(7, 'on')
+        ret  = val1  
+        self.tprint(f'SetGripperMembraneOn : {ret}')
+        return ret    
+    
+    def SetGripperMembraneOff(self):
+        "open cover pull"
+        val1 = self.set_digital_io_output(7, 'off')
+        ret  = val1  
+        self.tprint(f'SetGripperMembraneOff : {ret}')
         return ret     
 
     # ----------------------------
-    # robot functionality 
+    # robot linear stage functionality 
     # ----------------------------  
     def MoveLinearCylinderForward(self, timeout = 5):
         "set linear cylinder forward and wait for reaching the position"
@@ -609,6 +665,68 @@ class Robot:
         self.tprint(f'MoveLinearCylinderForward : {ret}')
         return ret 
          
+    # ----------------------------
+    # gripper functionality 
+    # ----------------------------  
+    def GripperClampOpen(self, timeout = 5):
+        "set clamp open forward and wait for reaching the position"
+        ret = self.SetGripperClampOpen() # 
+        ret = self.CheckGripperClampOpen()
+        t_start = time.time()
+        while not ret:
+            time.sleep(0.2)
+            ret = self.CheckGripperClampOpen()
+            if time.time() - t_start > timeout:
+                self.tprint('GripperClampOpen - timeout')
+                break
+        
+        self.tprint(f'GripperClampOpen : {ret}')
+        return ret     
+    
+    def GripperClampClose(self, timeout = 5):
+        "set clamp close forward and wait for reaching the position"
+        ret = self.SetGripperClampClose() # 
+        ret = self.CheckGripperClampClose()
+        t_start = time.time()
+        while not ret:
+            time.sleep(0.2)
+            ret = self.CheckGripperClampClose()
+            if time.time() - t_start > timeout:
+                self.tprint('GripperClampClose - timeout')
+                break
+        
+        self.tprint(f'GripperClampClose : {ret}')
+        return ret 
+
+    def GripperCoverPush(self, timeout = 5):
+        "set gripper cover push"
+        ret = self.SetGripperCoverPush() # 
+        ret = self.CheckGripperPush()
+        t_start = time.time()
+        while not ret:
+            time.sleep(0.2)
+            ret = self.CheckGripperPush()
+            if time.time() - t_start > timeout:
+                self.tprint('GripperCoverPush - timeout')
+                break
+        
+        self.tprint(f'GripperCoverPush : {ret}')
+        return ret 
+
+    def GripperCoverPull(self, timeout = 5):
+        "set gripper cover pull"
+        ret = self.SetGripperCoverPull() # 
+        ret = self.CheckGripperPull()
+        t_start = time.time()
+        while not ret:
+            time.sleep(0.2)
+            ret = self.CheckGripperPull()
+            if time.time() - t_start > timeout:
+                self.tprint('GripperCoverPull - timeout')
+                break
+        
+        self.tprint(f'GripperCoverPull : {ret}')
+        return ret      
 
     # ----------------------------
     # robot motion control
@@ -655,14 +773,22 @@ class Robot:
     def MovePathPoints(self, point_list = []):
         "executes motion over defined point list"
         if len(point_list) < 1:
-            point_list = ['Home', 'AboveTable','TakePart','AboveTable']
+            point_list = ['Home', 'AboveTable','TakePart','AboveTable','InfrontDoor','InfrontTestStand','TestStand']
             
+        point_list_reverse = point_list[::-1]
         repeat_num = 2
         for k in range(repeat_num):
             for pname in point_list:
                 next_pose = self.get_point_pose('Position', pname)
-                self.move_linear_from_current_position([next_pose], 5, 1) 
+                self.move_linear_from_current_position([next_pose], 5, 1)
+                self.tprint('Finished : %s' %pname)
                 time.sleep(0.1)
+                
+            for pname in point_list_reverse:
+                next_pose = self.get_point_pose('Position', pname)
+                self.move_linear_from_current_position([next_pose], 5, 1) 
+                self.tprint('Finished : %s' %pname)
+                time.sleep(0.1)                
                 
         self.tprint('MovePathPoints done')
         
@@ -873,7 +999,7 @@ class TestRobotAPI: #unittest.TestCase
         pose = self.r.get_pose_euler()
        
     def TestGripper(self):
-        self.r.robot_info() 
+        #self.r.robot_info() 
         #self.r.list_methods()
         self.r.power_on()
         self.r.switch_to_automatic_mode()
@@ -961,6 +1087,17 @@ class TestRobotAPI: #unittest.TestCase
             time.sleep(3)
             self.r.SetTableDriver('off')
             time.sleep(3)
+            
+    def TestGripperFunctions(self):
+        "test gripper ios"
+        for k in range(3):    
+            
+            self.r.SetGripperClampOpen()
+            self.r.SetGripperClampClose()
+            self.r.SetGripperCoverPush()
+            self.r.SetGripperCoverPull()
+            self.r.SetGripperMembraneOn()
+            self.r.SetGripperMembraneOff()
        
   
 
@@ -980,4 +1117,5 @@ if __name__ == '__main__':
     #tapi.TestFunctionalInputs() # ok
     #tapi.TestSetLinearCylinderForwardBackward() # ok
     #tapi.TestMoveLinearCylinderForwardBackward() # ok
-    tapi.TestSetTableDriver()
+    #tapi.TestSetTableDriver()
+    tapi.TestGripperFunctions()
