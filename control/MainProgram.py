@@ -40,8 +40,8 @@ from threading import Thread
 #sys.path.insert(1, r'D:\RobotAI\Customers\VineRoboticq\Code\RobotManager\vision')
 
 #import os
-#%% Logger
-from gui.Logger import logger
+# Logger
+#from gui.Logger import logger
 #import logging
 #logger      = logging.getLogger("robot")
 ##formatter   = logging.Formatter('[%(asctime)s.%(msecs)03d] {%(filename)6s:%(lineno)3d} %(levelname)s - %(message)s', datefmt="%M:%S", style="{")
@@ -72,26 +72,19 @@ from host.ComServer  import ComServer as HostManager
 #from control.StateMachine import StateMachine
 from disc.ControllerIO import ControllerIO
 
-#except Exception as e:
-#    from ConfigManager import ConfigManager
-#    from DisplayManager  import DisplayManager
-#    from RobotAPI import RobotAPI as RobotManager    
-#    # debug
-#    print(e)
-#    print('Load them manually and then switch directory')
-#    #from MsgJsonSimple import MsgPoseData
-#
+#%%
+import logging
+logger      = logging.getLogger("robot")
 
+#log.basicConfig(level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)6s:%(lineno)3d} %(levelname)s - %(message)s',  datefmt="%M:%S")
+#log.basicConfig(stream=sys.stdout, level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)s:%03(lineno)d} %(levelname)s - %(message)s',  datefmt="%M:%S")
+formatter   = logging.Formatter('[%(asctime)s] - %(levelname)s - %(message)s')
+logger.setLevel("DEBUG")
 
-
-
-#
-#AXIS_VIEW_OPTIONS             = ["45-45","Left","Top"] #et
-#SAFETY_MARGIN_Z               = 50  # mm
-#TX_STEP_SIZE                  = 0.0400 # metr
-#SCAN_POINTS                   = [[-500,-200, 400, 94, 0, -82],[-500,0,400, 94, 0, -82],[-500,0,600, 94, 0, -82],[-500,-220,600, 94, 0, -82],[-665.01 ,-251.23 , 648.96 , 94, 0, -82]]
-#HOME_POSE                     = [-500.0, 38.0, 430.0, 94.3088530785335, 0.6875493541569879, -82.21944360127314]
-#        
+console_handler = logging.StreamHandler()
+console_handler.setLevel("DEBUG")
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
 
 #%% 
 # StateMachine/State.py
@@ -126,6 +119,13 @@ class ERROR(Enum):
     ERROR               = 401
     EMERGENCY_STOP      = 402
     NO_AIR_SUPPLY       = 403
+    
+#%% message
+class Message:
+    def __init__(self):
+        self.command    = 1
+        self.data       = []
+    
 
 
 #%% 
@@ -154,6 +154,19 @@ class MainProgram:
         
         self.Print('Created')
         
+    def Print(self, txt='',level='I'):
+        txt = ' MAN: ' + txt
+        if level == 'I':
+            #ptxt = 'I: PRG: %s' % txt
+            logger.info(txt)
+        if level == 'W':
+            #ptxt = 'W: PRG: %s' % txt
+            logger.warning(txt)
+        if level == 'E':
+            #ptxt = 'E: PRG: %s' % txt
+            logger.error(txt)
+        #print(ptxt)        
+        
 
     ## -------------------------------
     #  -- Init All---
@@ -172,7 +185,7 @@ class MainProgram:
         
     def Start(self):
         "start running"        
-        self.host.Start()
+        #self.host.Start()
         self.rbm.Start()
         self.ioc.Start()
         self.Print('Start')
@@ -193,7 +206,7 @@ class MainProgram:
         
     def Stop(self):
         "stop everything"        
-        self.host.Stop()
+        #self.host.Stop()
         self.rbm.Stop()
         self.ioc.Stop()
         self.Print('Stop')   
@@ -206,11 +219,11 @@ class MainProgram:
         "check if all modules are connected"
         ret         = True
         ret         = self.rbm.IsConnected() and ret
-        ret         = self.host.IsConnected() and ret
+        #ret         = self.host.IsConnected() and ret
         ret         = self.ioc.IsConnected() and ret
         self.Print('Connectivity : %s' %str(ret))
         return ret   
-    
+     
     def CheckSystemHome(self):
         "check if all modules are in home position"
         ret         = True
@@ -275,6 +288,9 @@ class MainProgram:
             # move table
             self.MoveTableIndex()
             
+            # debug
+            time.sleep(0.2)
+            
             # read home sensor again
             home_sensor = self.rbm.CheckTableHomePosition()
             
@@ -283,10 +299,13 @@ class MainProgram:
             if count > 23:
                 break 
             
+            self.Print('Count rotations : %d' %count)
+            
         if home_sensor:
             self.Print('Table in home position')
         else:
             self.Print('Table home is not found','E')
+            
             
         return home_sensor
     
@@ -309,20 +328,39 @@ class MainProgram:
     
     def MoveTableIndex(self, timeout = 5):
         "moving the table one index from 24 stations"
-        self.Print('Moving table one index ...')   
+        self.Print('Moving table one index ...')  
+        
+        ret = self.ioc.CheckTableIsMoving()
+        if ret:
+            self.Print('Table is moving or table error','E')
+            return
         
         self.rbm.SetTableDriver('on')
-        ret = self.ioc.CheckTableIndex()
         
+        # catch the input goes down - table is moving
+        ret = self.ioc.CheckTableIsMoving()
         t_start = time.time()
         while not ret:
-            time.sleep(0.2)
-            ret = self.CheckTableIndex()
+            #time.sleep(0.2)
+            ret = self.ioc.CheckTableIsMoving()
             if time.time() - t_start > timeout:
-                self.Print('MoveTableIndex - timeout')
+                self.Print('MoveTableIndex - timeout 1')
+                break        
+        
+        # wait for the next index
+        ret = self.ioc.CheckTableReachedIndexPosition()
+        t_start = time.time()
+        while not ret:
+            #time.sleep(0.2)
+            ret = self.ioc.CheckTableReachedIndexPosition()
+            if time.time() - t_start > timeout:
+                self.Print('MoveTableIndex - timeout 2')
                 break
         
-        self.Print(f'MoveTableIndex : {ret}')
+        # stop table rotation
+        self.rbm.SetTableDriver('off')        
+        
+        #self.Print(f'MoveTableIndex : {ret}')
         return ret 
 
 
@@ -357,17 +395,19 @@ class MainProgram:
         msg_out     = msg_in
         next_state  = curr_state
         
-        # do we have conection
-        ret         = self.CheckConnection()
-        if not ret:
-            self.error = ERROR.NO_CONNECTION
-            next_state = STATE.ERROR
-            
-        # do we have initial position
-        ret         = self.CheckSystemState()
-        if not ret:
-            self.error = ERROR.NONE
-            next_state = STATE.HOME            
+        self.Init()
+        
+#        # do we have conection
+#        ret         = self.CheckConnection()
+#        if not ret:
+#            self.error = ERROR.NO_CONNECTION
+#            next_state = STATE.ERROR
+#            
+#        # do we have initial position
+#        ret         = self.CheckSystemState()
+#        if not ret:
+        self.error = ERROR.NONE
+        next_state = STATE.HOME            
         
         return msg_out, next_state 
     
@@ -408,6 +448,11 @@ class MainProgram:
         #if curr_state == 
         if msg_in.command == 0 : # - empty message"
             pass
+        
+        elif msg_in.command == 1:      
+            self.Print('1 - Debug')
+            self.error = ERROR.NONE
+            next_state = STATE.LOAD_UUT_TO_TABLE
         
         elif msg_in.command == 2:
             self.Print('2 - Load UUT to index table command')
@@ -464,7 +509,7 @@ class MainProgram:
             ret = self.ioc.CheckTwoButtonPush()        
         
         # move table to the next index
-        ret = self.ioc.MoveTableNextStation()
+        ret = self.MoveTableNextStation()
         if not ret:
             self.error = ERROR.MOVE_TABLE_PROBLEM
             next_state = STATE.ERROR 
@@ -518,7 +563,7 @@ class MainProgram:
         
         # move table to the next index
         #self.ioc.NextTableIndex(increment = -1)
-        ret = self.ioc.MoveTableNextStation()
+        ret = self.MoveTableNextStation()
         if not ret:
             self.error = ERROR.MOVE_TABLE_PROBLEM
             next_state = STATE.ERROR         
@@ -794,7 +839,6 @@ class MainProgram:
         next_state  = curr_state
         return msg_out, next_state  
 
-
     def Transition(self, msg_in):
         "transition to a different state"
         curr_state = self.state
@@ -855,47 +899,100 @@ class MainProgram:
         
         
     ## -------------------------------
-    #  -- TASK ---
+    #  -- TASKS ---
     ## -------------------------------
+    def TaskMoveTableHome(self, msg_in):
+        "transition to a different state"
+        curr_state = self.state
+        #next_state = self.state
+        
+        # deal with special messages
+        #msg_out, curr_state = self.StateSpecialMessage(msg_in, curr_state)
+        
+        # deal with messages per state
+        if curr_state == STATE.INIT:
+            msg_out, next_state = self.StateInit(msg_in, curr_state)
+           
+            
+        elif curr_state == STATE.HOME:
+            #msg_out, next_state = self.StateHome(msg_in, curr_state)   
+            msg_out, next_state = msg_in, STATE.LOAD_UUT_TO_TABLE
+#            
+#        elif curr_state == STATE.WAIT_FOR_COMMAND:
+#            msg_out, next_state = self.StateWaitForCommand(msg_in, curr_state) 
+            
+        elif curr_state == STATE.LOAD_UUT_TO_TABLE:
+            msg_out, next_state = self.StateLoadUUTToTable(msg_in, curr_state)  
+            
+#        elif curr_state == STATE.UNLOAD_UUT_FROM_TABLE:
+#            msg_out, next_state = self.StateUnLoadUUTFromTable(msg_in, curr_state) 
+            
+#        elif curr_state == STATE.STOP:
+#            msg_out, next_state = self.StateStop(msg_in, curr_state)            
+#            
+#        elif curr_state == STATE.FINISH:
+#            msg_out, next_state = self.StateFinish(msg_in, curr_state)
+#            
+#        elif curr_state == STATE.ERROR:
+#            msg_out, next_state = self.StateError(msg_in, curr_state)     
+#            
+#        else:
+#            msg_out, next_state = msg_in, STATE.ERROR
+#            self.Print('Not supprted state')
+            
+        if curr_state != next_state:
+            self.Print('Transition from %s to %s' %(str(curr_state),str(next_state)))  
+            
+        self.state = next_state
+        
+        return msg_out    
+    
+    
     def MainTask(self):
         "run all modules"
+        
+        self.state  = STATE.INIT
+        msg_in      = Message()
+        
+        self.stop   = False
         while not self.stop:
             
             # receive message from the host
-            msgRx = self.host.RecvMessage()
+            #msgRx = self.host.RecvMessage()
             
             # send message to the state machine
-            msgTx  = self.Transition(msgRx)
+            msg_out  = self.TaskMoveTableHome(msg_in)
             
             # send response to the host
-            isOk   = self.host.SendMessage(msgTx)
+            #isOk   = self.host.SendMessage(msgTx)
+            time.sleep(1)
 
     def Run(self):
         "running in the thread"
         self.ts = Thread(target = self.MainTask)
         self.ts.start()  
 
-    def Print(self, txt='',level='I'):
 
-        if level == 'I':
-            #ptxt = 'I: PRG: %s' % txt
-            logger.info(txt)
-        if level == 'W':
-            #ptxt = 'W: PRG: %s' % txt
-            logger.warning(txt)
-        if level == 'E':
-            #ptxt = 'E: PRG: %s' % txt
-            logger.error(txt)
-        #print(ptxt)
-
+        
+    ## -------------------------------
+    #  -- TESTS ---
+    ## -------------------------------    
+    def TestMoveTableNextStation(self):
+        "testing table motion"
+        ret = self.Init()
+        ret = self.MoveTableNextStation()
+    
     def TestMoveTableHome(self):
         "testing table motion"
         ret = self.Init()
         ret = self.MoveTableHome()
+        
+        
 
             
 #%% Testing - unittest
-class TestMainProgram:
+class TestMainHost:
+    "comm with host simulator"
     def __init__(self):
         from host.ComClient import ComClient as HostSimulator
         self.mp = MainProgram()
@@ -931,12 +1028,17 @@ class TestMainProgram:
 # --------------------------
 if __name__ == '__main__':
     #from MainProgram import MainProgram
-    #tst = TestMainProgram()
+    #tst = TestMainHost()
     #tst.test_current_state() # ok
     #tst.test_init() # ok 
     #tst.test_start() # ok 
     #tst.test_main() # ???
     #tst.test_state_init()
     
+    # simle programs
     mp = MainProgram()
-    mp.TestMoveTableHome()
+    #mp.TestMoveTableHome()
+    #mp.TestMoveTableNextStation()
+    mp.MainTask()
+    
+    

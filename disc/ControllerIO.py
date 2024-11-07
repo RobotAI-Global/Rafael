@@ -203,15 +203,22 @@ class ControllerIO:
         "return True if part in load position is present"
         val1 = self.ioc2.GetInputStatus(3)
         ret = val1 == 'on'
-        self.Print(f'CheckPartInLoadPosition : {ret}')
+        #self.Print(f'CheckPartInLoadPosition : {ret}')
         return ret   
     
-    def CheckTableIndex(self):
+    def CheckTableReachedIndexPosition(self):
         "return 1 if table completed the index 0-moving"
         val1    = self.ioc2.GetInputStatus(4)
+        ret     = val1 == 'off'
+        #self.Print(f'CheckTableReachedIndexPosition : {ret}')
+        return ret   
+    
+    def CheckTableIsMoving(self):
+        "return 1 if table is moving"
+        val1    = self.ioc2.GetInputStatus(4)
         ret     = val1 == 'on'
-        self.Print(f'CheckTableIndex : {ret}')
-        return ret    
+        #self.Print(f'CheckTableIsMoving : {ret}')
+        return ret       
     
     ## ------------------------------------  
     # -- Discrete Output Map HHC-1 - 105
@@ -508,6 +515,7 @@ class ControllerIO:
 
     def Print(self, ptxt='',level='I'):
         
+        ptxt = ' IOC:'+ ptxt
         if level == 'I':
             #ptxt = 'I: IOC: %s' % txt
             logger.info(ptxt)
@@ -518,7 +526,7 @@ class ControllerIO:
             #ptxt = 'E: IOC: %s' % txt
             logger.error(ptxt)
             
-        print(ptxt)
+        #print(ptxt)
             
         
     def Test(self):

@@ -58,15 +58,17 @@ SOCKET_PORT = 65432
 import logging
 logger      = logging.getLogger("robot")
 
-#log.basicConfig(level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)6s:%(lineno)3d} %(levelname)s - %(message)s',  datefmt="%M:%S")
-#log.basicConfig(stream=sys.stdout, level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)s:%03(lineno)d} %(levelname)s - %(message)s',  datefmt="%M:%S")
-formatter   = logging.Formatter('[%(asctime)s] - [%(filename)12s:%(lineno)3d] - %(levelname)s - %(message)s')
-logger.setLevel("DEBUG")
+#%%
 
-console_handler = logging.StreamHandler()
-console_handler.setLevel("DEBUG")
-console_handler.setFormatter(formatter)
-logger.addHandler(console_handler)
+##log.basicConfig(level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)6s:%(lineno)3d} %(levelname)s - %(message)s',  datefmt="%M:%S")
+##log.basicConfig(stream=sys.stdout, level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)s:%03(lineno)d} %(levelname)s - %(message)s',  datefmt="%M:%S")
+#formatter   = logging.Formatter('[%(asctime)s] - [%(filename)12s:%(lineno)3d] - %(levelname)s - %(message)s')
+#logger.setLevel("DEBUG")
+#
+#console_handler = logging.StreamHandler()
+#console_handler.setLevel("DEBUG")
+#console_handler.setFormatter(formatter)
+#logger.addHandler(console_handler)
 
 #class CustomFormatter(logging.Formatter):
 #
@@ -509,7 +511,7 @@ class Robot:
         "check input THP"
         val = self.get_digital_io_input(0)
         ret = val > 0.5
-        self.tprint(f'CheckTableHomePosition : {ret}')
+        #self.tprint(f'CheckTableHomePosition : {ret}')
         return ret
     
     def CheckTableUnloadPosition(self):
@@ -582,9 +584,9 @@ class Robot:
 
     def SetTableDriver(self, on_off = 'off'):
         "enable one index table"
-        val1 = self.set_digital_io_output(4, on_off)
+        val1 = self.set_digital_io_output(3, on_off)
         ret  = val1 
-        self.tprint(f'SetTableDriver : {ret}')
+        #self.tprint(f'SetTableDriver : {ret}')
         return ret  
     
     def SetGripperClampOpen(self):
@@ -1114,8 +1116,8 @@ if __name__ == '__main__':
     #tapi.TestGripper() # 
     #tapi.TestIO() # 
     #tapi.TestPathMotion()
-    #tapi.TestFunctionalInputs() # ok
+    tapi.TestFunctionalInputs() # ok
     #tapi.TestSetLinearCylinderForwardBackward() # ok
     #tapi.TestMoveLinearCylinderForwardBackward() # ok
     #tapi.TestSetTableDriver()
-    tapi.TestGripperFunctions()
+    #tapi.TestGripperFunctions()

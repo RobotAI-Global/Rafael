@@ -115,7 +115,7 @@ class IOController:
         res = self.ReciveDataFromController('input', iNumber) # self.rValue
         #self.tprint('GetInputStatus : %s' %str(self.rValue))
         
-        self.tprint(f'Input {iNumber} : {res}')
+        #self.tprint(f'Input {iNumber} : {res}')
         return res
     
     def SetOutput(self, iNumber, Cmnd = 'on', sDelay = '00'):
@@ -291,7 +291,7 @@ class IOController:
             #ptxt = 'E: IOC: %s' % txt
             logger.error(ptxt)
             
-        print(ptxt)
+        #print(ptxt)
             
         
     def Test(self):
