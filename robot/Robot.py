@@ -390,7 +390,7 @@ class Robot:
 #            val = False
 #        else:
 #            val = True
-        self.tprint(val)    
+#        self.tprint(val)    
         return val    
     
     def set_digital_io_output(self, OutputName, Action):
@@ -561,6 +561,13 @@ class Robot:
         val1 = self.get_digital_io_input(6)
         ret  = val1 > 0.5 
         self.tprint(f'CheckGripperClampOpen : {ret}')
+        return ret  
+    
+    def CheckTableDriverOutputOn(self):
+        "check if digital output is active"
+        val1 = self.get_digital_io_output(3)
+        ret  = val1 > 0.5 
+        self.tprint('CheckTableDriverOutputOn : %s' %str(ret))
         return ret     
     
     # ----------------------------
@@ -736,7 +743,7 @@ class Robot:
     
     def GetHomePosition(self):
         "get default position using home point"
-        pose = self.get_point_pose(g_Type = "Position", g_PosName = "Home")
+        pose = self.get_point_pose( 'Position', 'Home')
         return pose  
     
     def GetCurrentPosition(self):
@@ -744,13 +751,13 @@ class Robot:
         pose = self.get_current_pose()
         return pose       
 
-    def CheckRobotHomePosition(self):
+    def MoveRobotHomePosition(self):
         "check the home position"
         pose_home = self.GetHomePosition()
         pose_curr = self.GetCurrentPosition()
         
-        ret = np.all(pose_home == pose_curr)
-        return ret
+        ret       = np.all(pose_home == pose_curr)
+        return True
     
     def CheckAirCution(self):
         "air cution"
@@ -778,7 +785,7 @@ class Robot:
             point_list = ['Home', 'AboveTable','TakePart','AboveTable','InfrontDoor','InfrontTestStand','TestStand']
             
         point_list_reverse = point_list[::-1]
-        repeat_num = 2
+        repeat_num = 1
         for k in range(repeat_num):
             for pname in point_list:
                 next_pose = self.get_point_pose('Position', pname)
@@ -786,12 +793,12 @@ class Robot:
                 self.tprint('Finished : %s' %pname)
                 time.sleep(0.1)
                 
-            for pname in point_list_reverse:
-                next_pose = self.get_point_pose('Position', pname)
-                self.move_linear_from_current_position([next_pose], 5, 1) 
-                self.tprint('Finished : %s' %pname)
-                time.sleep(0.1)                
-                
+#            for pname in point_list_reverse:
+#                next_pose = self.get_point_pose('Position', pname)
+#                self.move_linear_from_current_position([next_pose], 5, 1) 
+#                self.tprint('Finished : %s' %pname)
+#                time.sleep(0.1)                
+#                
         self.tprint('MovePathPoints done')
         
 
@@ -839,8 +846,8 @@ class Robot:
     
     def PutUUTOnTable(self):
         "put UUT back to table"
-        pose = self.get_point_pose(g_Type = "Position", g_PosName = "Home")
-        self.set_pose(pose)
+        point_list = ['Home', 'AboveTable','TakePart','AboveTable','Home']
+        self.MovePathPoints(point_list)
         
         # open griper
         
@@ -850,9 +857,13 @@ class Robot:
         
     def PickUUTFromTable(self):
         "pick UUT to be tested"
-        pose = self.get_point_pose(g_Type = "Position", g_PosName = "Home")
-        self.set_pose(pose)
+        #pose = self.get_point_pose(g_Type = "Position", g_PosName = "Home")
+        #self.set_pose(pose)
         
+        point_list = ['Home', 'AboveTable','TakePart','AboveTable','InfrontDoor']
+        self.MovePathPoints(point_list)
+
+
         # open griper
         
         # close gripper
@@ -861,52 +872,23 @@ class Robot:
     
     def LoadUUTToTester(self):
         "loads UUT to tester"
-        pose = self.get_point_pose(g_Type = "Position", g_PosName = "Home")
-        self.set_pose(pose)
+        #pose = self.get_point_pose(g_Type = "Position", g_PosName = "Home")
+        #self.set_pose(pose)
+        
+        point_list = ['InfrontDoor','InfrontTestStand','TestStand']
+        self.MovePathPoints(point_list)
         
         # lock UUT on tester
         
         return True  
 
-    
-
-    def Home(self):
-        "set robot in home position"
-        
-        # check grpper holds something
-        
-        # if gripper closed
-        # move robot to the table to return the part
-        # open gripper
-        
-        # if gripper is open
-        
-        # check region
-        # if room do something
-        
-        # if table do
-        
-        
-        
-        
-        # move robot to predefined pose
-        pose = self.GetHomePosition()
-        self.set_pose(pose)
-        #self.ROBOT_HOME_POSE
-        
-        return True
-        
-        
     def Print(self, txt='',level='I'):
-
+        ptxt = 'ROB: %s' % str(txt)
         if level == 'I':
-            ptxt = 'I: ROB: %s' % txt
             logger.info(ptxt)
         if level == 'W':
-            ptxt = 'W: ROB: %s' % txt
             logger.warning(ptxt)
         if level == 'E':
-            ptxt = 'E: ROB: %s' % txt
             logger.error(ptxt)
         
         #print(ptxt)        
@@ -1086,8 +1068,12 @@ class TestRobotAPI: #unittest.TestCase
         "test index table"
         for k in range(3):
             self.r.SetTableDriver('on')
+            time.sleep(1)
+            self.r.CheckTableDriverOutputOn()
             time.sleep(3)
             self.r.SetTableDriver('off')
+            time.sleep(1)
+            self.r.CheckTableDriverOutputOn()
             time.sleep(3)
             
     def TestGripperFunctions(self):
@@ -1116,8 +1102,8 @@ if __name__ == '__main__':
     #tapi.TestGripper() # 
     #tapi.TestIO() # 
     #tapi.TestPathMotion()
-    tapi.TestFunctionalInputs() # ok
+    #tapi.TestFunctionalInputs() # ok
     #tapi.TestSetLinearCylinderForwardBackward() # ok
     #tapi.TestMoveLinearCylinderForwardBackward() # ok
-    #tapi.TestSetTableDriver()
+    tapi.TestSetTableDriver()
     #tapi.TestGripperFunctions()

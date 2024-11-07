@@ -91,34 +91,37 @@ logger.addHandler(console_handler)
 # A State has an operation, and can be moved into the next State given an Input:
 from enum import Enum
 class STATE(Enum):
-    INIT                = 1
-    HOME                = 2    
+    INIT                    = 1
+    HOME                    = 2    
     
-    WAIT_FOR_COMMAND    = 20    # host command
-    LOAD_UUT_TO_TABLE   = 30    # host command 
-    UNLOAD_UUT_FROM_TABE= 40
-    LOAD_UUT_TO_STAND   = 50
-    UNLOAD_UUT_FROM_STAND = 60  
-    GET_AND_SEND_STATUS = 70     # send status to host
+    WAIT_FOR_COMMAND        = 20    # host command
+    LOAD_UUT_TO_TABLE       = 30    # host command 
+    UNLOAD_UUT_FROM_TABLE   = 40
+    LOAD_UUT_TO_STAND       = 50
+    UNLOAD_UUT_FROM_STAND   = 60  
+    GET_AND_SEND_STATUS     = 70     # send status to host
     GET_AND_SEND_BIT_RESULTS = 71
-    SPECIAL             = 80     # deal with special message
-    STOP                = 90     # emergency stop
-    FINISH              = 100
-    ERROR               = 401
+    SPECIAL                 = 80     # deal with special message
+    STOP                    = 90     # emergency stop
+    FINISH                  = 100
+    ERROR                   = 401
     
 # An error manager:
 class ERROR(Enum):
-    NONE                = 0    
-    NO_CONNECTION       = 101
-    NO_HOME_POSITION    = 102     # deal with special message
-    CAN_NOT_STOP        = 103
-    BAD_HOST_COMMAND    = 104
-    TESTER_OPEN_DOOR    = 201
-    TESTER_OPEN_BUHNA   = 202
-    FINISH              = 300
-    ERROR               = 401
-    EMERGENCY_STOP      = 402
-    NO_AIR_SUPPLY       = 403
+    NONE                    = 0    
+    NO_CONNECTION           = 101
+    NO_HOME_POSITION        = 102     # deal with special message
+    CAN_NOT_STOP            = 103
+    BAD_HOST_COMMAND        = 104
+    UUT_NOT_IN_FRONT_ROBOT  = 105
+    ROBOT_HOME_POSITION     = 106
+    TESTER_OPEN_DOOR        = 201
+    TESTER_OPEN_BUHNA       = 202
+    MOVE_TABLE_PROBLEM      = 251
+    FINISH                  = 300
+    ERROR                   = 401
+    EMERGENCY_STOP          = 402
+    NO_AIR_SUPPLY           = 403
     
 #%% message
 class Message:
@@ -154,8 +157,8 @@ class MainProgram:
         
         self.Print('Created')
         
-    def Print(self, txt='',level='I'):
-        txt = ' MAN: ' + txt
+    def Print(self, ptxt='',level='I'):
+        txt = 'MAN: %s' %str(ptxt)
         if level == 'I':
             #ptxt = 'I: PRG: %s' % txt
             logger.info(txt)
@@ -283,6 +286,11 @@ class MainProgram:
         
         home_sensor = self.rbm.CheckTableHomePosition()
         count       = 0
+        
+        # deal with table stuck in the middle
+        if not home_sensor:
+            ret  = self.MoveTableIndexIfBetweenStations()
+        
         while not home_sensor:
              
             # move table
@@ -323,7 +331,7 @@ class MainProgram:
             self.Print('Can not move to the next index 2','E')
             return ret
             
-        self.Print('Done')
+        self.Print('Moving table Done')
         return ret
     
     def MoveTableIndex(self, timeout = 5):
@@ -362,7 +370,108 @@ class MainProgram:
         
         #self.Print(f'MoveTableIndex : {ret}')
         return ret 
+    
+    
+    def MoveTableIndexIfBetweenStations(self, timeout = 5):
+        "moving the table when stuck between two stations - indicated by TableIsMoving"
+        self.Print('Moving table one index ...')  
+        
+        ret1   = self.ioc.CheckTableIsMoving()
+        ret2   = self.rbm.CheckTableDriverOutputOn()
+        ret    = ret1 and (not ret2)
+        if not ret:
+            self.Print('Table is in correct position','I')
+            return ret
+        
+        self.Print('Table is in the middle - fixing the position','I')
+        
+        self.rbm.SetTableDriver('on')
+        
+        # catch the input goes down - table is moving
+        ret = self.ioc.CheckTableIsMoving()
+        t_start = time.time()
+        while not ret:
+            #time.sleep(0.2)
+            ret = self.ioc.CheckTableIsMoving()
+            if time.time() - t_start > timeout:
+                self.Print('MoveTableIndex - timeout 1')
+                break        
+        
+        # wait for the next index
+        ret = self.ioc.CheckTableReachedIndexPosition()
+        t_start = time.time()
+        while not ret:
+            #time.sleep(0.2)
+            ret = self.ioc.CheckTableReachedIndexPosition()
+            if time.time() - t_start > timeout:
+                self.Print('MoveTableIndex - timeout 2')
+                break
+        
+        # stop table rotation
+        self.rbm.SetTableDriver('off')        
+        
+        #self.Print(f'MoveTableIndex : {ret}')
+        return ret     
+    
+    def MoveTableWithNextUUTforTest(self):
+        "Find next UUT to load"
+        self.Print('Moving next UUT for test ...')
 
+        # 11. Rotate the table
+        ret        = self.MoveTableNextStation()       
+            
+        return True
+
+    ## ------------------------------------  
+    # -- Linear Stage Control ---
+    ## ------------------------------------     
+    def MoveLinearCylinderBackward(self, timeout = 5):
+        "moving the linear cylinder - axis 7 back"
+        self.Print('Moving cylinder back ...')  
+        
+        ret = self.ioc.LinearAxisBackwardPosition()
+        if ret:
+            self.Print('Cylinder in the back position','E')
+            return
+        
+        self.rbm.SetLinearCylinderBackward()     
+        
+        # wait for the cylinder
+        ret = self.ioc.LinearAxisBackwardPosition()
+        t_start = time.time()
+        while not ret:
+            #time.sleep(0.2)
+            ret = self.ioc.LinearAxisBackwardPosition()
+            if time.time() - t_start > timeout:
+                self.Print('Cylinder backward move - timeout ')
+                break
+        
+        self.Print('Moving cylinder - Done')  
+        return ret 
+    
+    def MoveLinearCylinderForward(self, timeout = 5):
+        "moving the linear cylinder - axis 7 back"
+        self.Print('Moving cylinder forward ...')  
+        
+        ret = self.ioc.LinearAxisForwardPosition()
+        if ret:
+            self.Print('Cylinder in the forward position','E')
+            return
+        
+        self.rbm.SetLinearCylinderForward()     
+        
+        # wait for the cylinder
+        ret = self.ioc.LinearAxisForwardPosition()
+        t_start = time.time()
+        while not ret:
+            #time.sleep(0.2)
+            ret = self.ioc.LinearAxisForwardPosition()
+            if time.time() - t_start > timeout:
+                self.Print('Cylinder forward move - timeout ')
+                break
+        
+        self.Print('Moving cylinder - Done')  
+        return ret    
 
     ## -------------------------------
     #  -- STATES ---
@@ -419,8 +528,9 @@ class MainProgram:
         # do we have initial position
         #ret         = self.ActionHome()
         
+        
         # open gripper
-        self.rbm.set_gripper('open')
+        #self.rbm.set_gripper('open')
         
         # check is something in the griper
         #TBD  
@@ -430,7 +540,7 @@ class MainProgram:
         # TBD        
         
         # send table to home position
-        ret         = self.ioc.SetTableHome()                
+        ret         = self.MoveTableHome()                
         if ret:
             self.error = ERROR.NONE
             next_state = STATE.WAIT_FOR_COMMAND
@@ -494,9 +604,11 @@ class MainProgram:
         return msg_out, next_state     
     
     def StateLoadUUTToTable(self, msg_in, curr_state):
-        "load uut table"
+        "load uut table - done"
         msg_out     = msg_in
         next_state  = curr_state
+        
+        
         
         # check if UUT in place - statw wait
         ret = self.ioc.CheckPartInLoadPosition()
@@ -509,7 +621,7 @@ class MainProgram:
             ret = self.ioc.CheckTwoButtonPush()        
         
         # move table to the next index
-        ret = self.MoveTableNextStation()
+        ret = self.MoveTableNextStation()       
         if not ret:
             self.error = ERROR.MOVE_TABLE_PROBLEM
             next_state = STATE.ERROR 
@@ -546,7 +658,7 @@ class MainProgram:
         
     
     def StateUnLoadUUTFromTable(self, msg_in, curr_state):
-        "unload uut from table"
+        "unload uut from table - done"
         msg_out     = msg_in
         next_state  = curr_state
         
@@ -571,197 +683,233 @@ class MainProgram:
         return msg_out, next_state   
     
     
-    def StateLoadUUTToTestStand(self, msg_in, curr_state):
-        "check if"
-        ret         = False
+    def StateLoadUUTToStand(self, msg_in, curr_state):
+        "state uut load"
+        ret         = True
         msg_out     = msg_in
         next_state  = curr_state  
         
-        # 1. Check robot in the backward position
-        ret         = self.ioc.LinearAxisBackwardPosition()
+#        # check if UUT in place - state wait
+#        ret = self.MoveTableWithNextUUTforTest()
+#        if not ret:
+#            self.Print('UUT is not in front of the robot','E')
+#            self.error = ERROR.UUT_NOT_IN_FRONT_ROBOT
+#            next_state = STATE.ERROR
+#            return msg_out, next_state            
+        
+        # 0. Check UUT in front of the Robot
+        ret         = self.rbm.CheckTableUnloadPosition()  
         if not ret:
-            self.Print('Robot linear axis is not in backward position')
-            self.error = ERROR.ROBOT_BACKWARD_POSITION
-            next_state = STATE.ERROR 
-            
-        # 2. Check robot in the home position
-        ret         = self.rbm.CheckHomePosition()
-        if not ret:
-            self.Print('Robot is not in home position')
-            self.error = ERROR.ROBOT_HOME_POSITION
+            self.Print('UUT is not in front of the robot','E')
+            self.error = ERROR.UUT_NOT_IN_FRONT_ROBOT
             next_state = STATE.ERROR   
-            
-        # 3. Check robot gripper in open position
-        ret         = self.rbm.CheckGripperOpen()
-        if not ret:
-            self.Print('Gripper is not in open position')
-            self.error = ERROR.GRIPPER_OPEN_POSITION
-            next_state = STATE.ERROR  
+            return msg_out, next_state  
+        
+#        # 1. Check/move robot in the backward position
+#        ret         = self.MoveLinearCylinderBackward()
+#        if not ret:
+#            self.Print('Robot linear axis is not in backward position')
+#            #self.error = ERROR.ROBOT_BACKWARD_POSITION
+#            next_state = STATE.ERROR 
+#            
+#        # 2. Check robot in the home position
+#        ret         = self.rbm.CheckHomePosition() and ret
+#        if not ret:
+#            self.Print('Robot is not in home position')
+#            self.error = ERROR.ROBOT_HOME_POSITION
+#            next_state = STATE.ERROR   
+#            
+#        # 3. Check robot gripper in open position
+#        ret         = self.rbm.CheckGripperOpen() and ret
+#        if not ret:
+#            self.Print('Gripper is not in open position')
+#            self.error = ERROR.GRIPPER_OPEN_POSITION
+#            next_state = STATE.ERROR  
             
         # 6. LOAD UUT 
-        ret        = self.rbm.PickUUTFromTable()           
+        ret        = self.rbm.PickUUTFromTable()      
         if not ret:
             self.Print('Robot pick from table UUT failure')
             self.error = ERROR.ROBOT_LOAD_UUT
-            next_state = STATE.ERROR              
+            next_state = STATE.ERROR 
+            return msg_out, next_state               
         
         # 7. open door
-        ret         = self.ioc.OpenTestCellDoor()
+        ret         = self.ioc.OpenTestCellDoor() 
         if not ret:
             self.Print('Tester open door timeout')
             self.error = ERROR.TESTER_OPEN_DOOR
-            next_state = STATE.ERROR  
-            
-        # 8. move robot forward
-        ret        = self.rbm.MoveRobotLinearAxisForward()           
-        if not ret:
-            self.Print('Robot move forward timeout')
-            self.error = ERROR.ROBOT_MOVE_FORWARD
             next_state = STATE.ERROR 
+            return msg_out, next_state              
+            
+#            
+#        # 8. move robot forward
+#        ret        = self.MoveLinearCylinderForward()  and ret         
+#        if not ret:
+#            self.Print('Robot move forward timeout')
+#            self.error = ERROR.ROBOT_MOVE_FORWARD
+#            next_state = STATE.ERROR 
             
         # 9. LOAD UUT 
-        ret        = self.rbm.LoadUUTToTester()           
+        ret        = self.rbm.LoadUUTToTester()       
         if not ret:
             self.Print('Robot load UUT failure')
             self.error = ERROR.ROBOT_LOAD_UUT
-            next_state = STATE.ERROR         
+            next_state = STATE.ERROR  
+            return msg_out, next_state              
         
-        # 10. move backward
-        ret         = self.ioc.LinearAxisBackwardPosition()
-        if not ret:
-            self.Print('Robot linear axis is not in backward position')
-            self.error = ERROR.ROBOT_BACKWARD_POSITION
-            next_state = STATE.ERROR          
-            
         # 11. get zama out by robot
-        ret        = self.rbm.PickTestConnector()
+        ret        = self.rbm.PickTestConnector() 
         if not ret:
             self.Print('Robot pick test connector')
             self.error = ERROR.ROBOT_PICK_CONNECTOR
-            next_state = STATE.ERROR          
+            next_state = STATE.ERROR 
+            return msg_out, next_state              
         
         # 12. plug connector
         ret        = self.rbm.PlugTestConnectorInUUT() 
         if not ret:
             self.Print('Robot plug test connector')
             self.error = ERROR.ROBOT_PLUG_CONNECTOR
-            next_state = STATE.ERROR  
-            
-        # 13. move backward
-        ret         = self.ioc.LinearAxisBackwardPosition()
-        if not ret:
-            self.Print('Robot linear axis is not in backward position')
-            self.error = ERROR.ROBOT_BACKWARD_POSITION
-            next_state = STATE.ERROR    
+            next_state = STATE.ERROR 
+            return msg_out, next_state              
+ 
             
         # 14. move robot home
-        ret         = self.rbm.Home()
+        ret         = self.rbm.MoveRobotHomePosition() 
         if not ret:
             self.Print('Robot is not in home position')
             self.error = ERROR.ROBOT_HOME_POSITION
-            next_state = STATE.ERROR                
+            next_state = STATE.ERROR   
+            return msg_out, next_state              
+            
+#        # 10. move backward
+#        ret         = self.MoveLinearCylinderBackward() and ret
+#        if not ret:
+#            self.Print('Robot linear axis is not in backward position')
+#            self.error = ERROR.ROBOT_BACKWARD_POSITION
+#            next_state = STATE.ERROR  
+             
         
         # 14. close door
-        ret        = self.ioc.CloseDoor()   
+        ret        = self.ioc.CloseTestCellDoor() 
         if not ret:
             self.Print('Door is not closed')
             self.error = ERROR.CLOSED_DOOR
             next_state = STATE.ERROR 
         
-        # 15. Start test
-        ret       = self.host.ReadyForTest()
-        if not ret:
-            self.Print('Send message')
-            self.error = ERROR.COMM_FAILURE
-            next_state = STATE.ERROR         
+#        # 15. Start test
+#        ret       = self.host.ReadyForTest() and ret
+#        if not ret:
+#            self.Print('Send message')
+#            self.error = ERROR.COMM_FAILURE
+#            next_state = STATE.ERROR         
         
         return msg_out, next_state
     
-    def StateUnloadUUTFromTestStand(self, msg_in, curr_state):
+    def StateUnloadUUTFromStand(self, msg_in, curr_state):
         "check if"
-        ret         = False
+        ret         = True
         msg_out     = msg_in
         next_state  = curr_state   
         
-        # 0. no UUT
-        ret        = self.ioc.CheckTableNoUUT()              
+ 
+            
+        # 0. Check UUT in front of the Robot : 0 - UUT in the place, 1 -good
+        ret         = not self.rbm.CheckTableUnloadPosition()
         if not ret:
             self.Print('Table has no place for  UUT')
             self.error = ERROR.TABLE_NO_PLACE
-            next_state = STATE.ERROR        
-        
-        # 1. Check robot in the backward position
-        ret         = self.ioc.LinearAxisBackwardPosition()
-        if not ret:
-            self.Print('Robot linear axis is not in backward position')
-            self.error = ERROR.ROBOT_BACKWARD_POSITION
-            next_state = STATE.ERROR 
+            next_state = STATE.ERROR  
+            return msg_out, next_state              
             
         # 2. Check robot in the home position
-        ret         = self.rbm.CheckHomePosition()
+        ret         = self.rbm.MoveRobotHomePosition() 
         if not ret:
             self.Print('Robot is not in home position')
             self.error = ERROR.ROBOT_HOME_POSITION
-            next_state = STATE.ERROR           
-        
+            next_state = STATE.ERROR          
+            return msg_out, next_state              
+            
         # 3. open door
-        ret         = self.ioc.OpenTestCellDoor()
+        ret         = self.ioc.OpenTestCellDoor() 
         if not ret:
             self.Print('Tester open door timeout')
             self.error = ERROR.TESTER_OPEN_DOOR
-            next_state = STATE.ERROR  
+            next_state = STATE.ERROR     
+            return msg_out, next_state              
+        
+        # 4. Check robot in the forwad position
+#        ret        = self.MoveLinearCylinderForward()  and ret         
+#        if not ret:
+#            self.Print('Robot move forward timeout')
+#            self.error = ERROR.ROBOT_MOVE_FORWARD
+#            next_state = STATE.ERROR 
             
+
         # 4. unplug connector
-        ret        = self.rbm.UnPlugTestConnectorInUUT() 
+        ret        = self.rbm.UnPlugTestConnectorInUUT()  
         if not ret:
             self.Print('Robot unplug test connector')
             self.error = ERROR.ROBOT_PLUG_CONNECTOR
             next_state = STATE.ERROR  
+            return msg_out, next_state              
             
         # 5. put connector back
-        ret        = self.rbm.PutTestConnector()
+        ret        = self.rbm.PutTestConnector() 
         if not ret:
             self.Print('Robot put test connector')
             self.error = ERROR.ROBOT_PICK_CONNECTOR
             next_state = STATE.ERROR 
+            return msg_out, next_state              
             
-
         # 6. take out uut
         ret        = self.rbm.GetUUTOut() 
         if not ret:
             self.Print('Robot take out UUT')
             self.error = ERROR.ROBOT_UNLOAD_UUT
-            next_state = STATE.ERROR   
+            next_state = STATE.ERROR
+            return msg_out, next_state              
             
         # 7. Check robot in the home position
-        ret         = self.rbm.CheckHomePosition()
+        ret         = self.rbm.MoveRobotHomePosition()
         if not ret:
             self.Print('Robot is not in home position')
             self.error = ERROR.ROBOT_HOME_POSITION
-            next_state = STATE.ERROR              
+            next_state = STATE.ERROR      
+            return msg_out, next_state              
             
-        # 8. Check axis in the backward position
-        ret         = self.ioc.LinearAxisBackwardPosition()
-        if not ret:
-            self.Print('Robot linear axis is not in backward position')
-            self.error = ERROR.ROBOT_BACKWARD_POSITION
-            next_state = STATE.ERROR 
+#        # 8. Check axis in the backward position
+#        ret         = self.MoveLinearCylinderBackward() and ret
+#        if not ret:
+#            self.Print('Robot linear axis is not in backward position')
+#            self.error = ERROR.ROBOT_BACKWARD_POSITION
+#            next_state = STATE.ERROR 
             
         # 9. close door
-        ret        = self.ioc.CloseDoor()         
+        ret        = self.ioc.CloseTestCellDoor()      
         if not ret:
             self.Print('Close door problem')
             self.error = ERROR.CLOSE_DOOR
             next_state = STATE.ERROR 
+            return msg_out, next_state              
             
         # 10. Put UUT  back
-        ret        = self.rbm.PutUUTOnTable()           
+        ret        = self.rbm.PutUUTOnTable()      
         if not ret:
             self.Print('Robot put on table UUT failure')
             self.error = ERROR.ROBOT_UNLOAD_UUT
-            next_state = STATE.ERROR             
-
+            next_state = STATE.ERROR
+            return msg_out, next_state              
             
+        # 11. Rotate the table
+        ret        = self.MoveTableNextStation()      
+        if not ret:
+            self.Print('Rotate table failure')
+            self.error = ERROR.ROBOT_UNLOAD_UUT
+            next_state = STATE.ERROR            
+
+        
         return msg_out, next_state
     
 
@@ -831,12 +979,14 @@ class MainProgram:
         "do onthing"
         msg_out     = msg_in
         next_state  = curr_state
+        self.Print('Sate Finish')
         return msg_out, next_state 
 
     def StateError(self, msg_in, curr_state):
         "do onthing"
-        msg_out     = msg_in
-        next_state  = curr_state
+        msg_out         = msg_in
+        next_state      = curr_state
+        self.Print('ERROR STATE - DO SOMETHING')
         return msg_out, next_state  
 
     def Transition(self, msg_in):
@@ -901,7 +1051,7 @@ class MainProgram:
     ## -------------------------------
     #  -- TASKS ---
     ## -------------------------------
-    def TaskMoveTableHome(self, msg_in):
+    def TaskTestStates(self, msg_in):
         "transition to a different state"
         curr_state = self.state
         #next_state = self.state
@@ -915,30 +1065,44 @@ class MainProgram:
            
             
         elif curr_state == STATE.HOME:
-            #msg_out, next_state = self.StateHome(msg_in, curr_state)   
+            msg_out, next_state = self.StateHome(msg_in, curr_state)   
             msg_out, next_state = msg_in, STATE.LOAD_UUT_TO_TABLE
-#            
-#        elif curr_state == STATE.WAIT_FOR_COMMAND:
-#            msg_out, next_state = self.StateWaitForCommand(msg_in, curr_state) 
+            #msg_out, next_state = msg_in, STATE.UNLOAD_UUT_FROM_TABLE
+            #msg_out, next_state = msg_in, STATE.LOAD_UUT_TO_STAND
+            #msg_out, next_state = msg_in, STATE.UNLOAD_UUT_FROM_STAND
+            
+        elif curr_state == STATE.WAIT_FOR_COMMAND:
+            msg_out, next_state = self.StateWaitForCommand(msg_in, curr_state) 
+
+       
             
         elif curr_state == STATE.LOAD_UUT_TO_TABLE:
             msg_out, next_state = self.StateLoadUUTToTable(msg_in, curr_state)  
+            msg_out, next_state = msg_in, STATE.LOAD_UUT_TO_STAND
             
-#        elif curr_state == STATE.UNLOAD_UUT_FROM_TABLE:
-#            msg_out, next_state = self.StateUnLoadUUTFromTable(msg_in, curr_state) 
+        elif curr_state == STATE.LOAD_UUT_TO_STAND:
+            msg_out, next_state = self.StateLoadUUTToStand(msg_in, curr_state) 
+            msg_out, next_state = msg_in, STATE.UNLOAD_UUT_FROM_STAND
+            
+        elif curr_state == STATE.UNLOAD_UUT_FROM_STAND:
+            msg_out, next_state = self.StateUnloadUUTFromStand(msg_in, curr_state)
+            msg_out, next_state = msg_in, STATE.UNLOAD_UUT_FROM_TABLE
+            
+        elif curr_state == STATE.UNLOAD_UUT_FROM_TABLE:
+            msg_out, next_state = self.StateUnLoadUUTFromTable(msg_in, curr_state) 
+            msg_out, next_state = msg_in, STATE.FINISH
             
 #        elif curr_state == STATE.STOP:
 #            msg_out, next_state = self.StateStop(msg_in, curr_state)            
 #            
-#        elif curr_state == STATE.FINISH:
-#            msg_out, next_state = self.StateFinish(msg_in, curr_state)
-#            
-#        elif curr_state == STATE.ERROR:
-#            msg_out, next_state = self.StateError(msg_in, curr_state)     
-#            
-#        else:
-#            msg_out, next_state = msg_in, STATE.ERROR
-#            self.Print('Not supprted state')
+        elif curr_state == STATE.FINISH:
+            msg_out, next_state = self.StateFinish(msg_in, curr_state)
+            
+        elif curr_state == STATE.ERROR:
+            msg_out, next_state = self.StateError(msg_in, curr_state)     
+        else:
+            msg_out, next_state = msg_in, STATE.ERROR
+            self.Print('Not supprted state')
             
         if curr_state != next_state:
             self.Print('Transition from %s to %s' %(str(curr_state),str(next_state)))  
@@ -961,11 +1125,12 @@ class MainProgram:
             #msgRx = self.host.RecvMessage()
             
             # send message to the state machine
-            msg_out  = self.TaskMoveTableHome(msg_in)
+            msg_out  = self.TaskTestStates(msg_in)
             
             # send response to the host
             #isOk   = self.host.SendMessage(msgTx)
             time.sleep(1)
+            
 
     def Run(self):
         "running in the thread"

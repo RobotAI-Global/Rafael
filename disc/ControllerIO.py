@@ -157,7 +157,7 @@ class ControllerIO:
         ret2 = self.ioc1.GetInputStatus(5) 
 
         ret    = (ret1  == 'on')  and (ret2 == 'on')
-        self.Print('Pressed %s and %s' %(str(ret1), str(ret2)))
+        #self.Print('Pressed %s and %s' %(str(ret1), str(ret2)))
         return ret    
 
     def CheckLockConnectorOpen(self):
@@ -513,9 +513,9 @@ class ControllerIO:
 
              
 
-    def Print(self, ptxt='',level='I'):
+    def Print(self, txt='',level='I'):
         
-        ptxt = ' IOC:'+ ptxt
+        ptxt = 'IOC: %s' %str(txt)
         if level == 'I':
             #ptxt = 'I: IOC: %s' % txt
             logger.info(ptxt)
@@ -609,12 +609,12 @@ if __name__ == '__main__':
     #c.Connect()
     #c.Test()
     #c.CheckTwoButtonPush()
-    #c.CheckStatusIO()
+    c.TestCheckStatusIO()
     #c.CheckEmegencyStop()
     #c.TestCheckTwoButtonPush()
     #c.TestSetDoorCylinderOpen() # ok
     #c.TestSetLockCylinderConnectorOnOff() # ok
-    c.TestSetLockCylinderOnOff()
+    #c.TestSetLockCylinderOnOff()
         
         
 

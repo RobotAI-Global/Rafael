@@ -280,7 +280,7 @@ class IOController:
 
     def tprint(self, txt='',level='I'):
         
-        ptxt = '%s : %s' %(self.ServerIp,txt)
+        ptxt = '%s : %s' %(self.ServerIp,str(txt))
         if level == 'I':
             #ptxt = 'I: IOC: %s' % txt
             logger.info(ptxt)
