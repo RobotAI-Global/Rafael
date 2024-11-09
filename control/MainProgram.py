@@ -638,7 +638,7 @@ class MainProgram:
         # 0. Check UUT in front of the Robot
         ret         = self.rbm.CheckTableUnloadPosition()  
         if not ret:
-            logger.info('UUT is not in front of the robot','E')
+            logger.warning('UUT is not in front of the robot')
             self.error = ERROR.UUT_NOT_IN_FRONT_ROBOT
             next_state = STATE.ERROR   
             return msg_out, next_state  
@@ -751,8 +751,7 @@ class MainProgram:
         msg_out     = msg_in
         next_state  = curr_state   
         
- 
-            
+
         # 0. Check UUT in front of the Robot : 0 - UUT in the place, 1 -good
         ret         = not self.rbm.CheckTableUnloadPosition()
         if not ret:
@@ -802,7 +801,7 @@ class MainProgram:
             return msg_out, next_state              
             
         # 6. take out uut
-        ret        = self.rbm.GetUUTOut() 
+        ret        = self.rbm.UnLoadUUTFromTester() 
         if not ret:
             logger.info('Robot take out UUT')
             self.error = ERROR.ROBOT_UNLOAD_UUT
@@ -987,6 +986,12 @@ class MainProgram:
     ## -------------------------------
     #  -- TASKS ---
     ## -------------------------------
+    def TaskStateLoadUUTToTable(self):
+        "moving to stand"
+        msg_in              = Message()
+        curr_state          = STATE.LOAD_UUT_TO_TABLE
+        msg_out, next_state = self.StateLoadUUTToTable(msg_in, curr_state) 
+
     def TaskStateLoadUUTToStand(self):
         "moving to stand"
         msg_in              = Message()
@@ -997,7 +1002,13 @@ class MainProgram:
         "moving to stand"
         msg_in              = Message()
         curr_state          = STATE.UNLOAD_UUT_FROM_STAND
-        msg_out, next_state = self.StateUnloadUUTFromStand(msg_in, curr_state)         
+        msg_out, next_state = self.StateUnloadUUTFromStand(msg_in, curr_state)   
+
+    def TaskStateUnLoadUUTFromTable(self):
+        "moving to stand"
+        msg_in              = Message()
+        curr_state          = STATE.UNLOAD_UUT_FROM_TABLE
+        msg_out, next_state = self.StateUnLoadUUTFromTable(msg_in, curr_state)               
 
     def TaskTestStates(self, msg_in):
         "transition to a different state"

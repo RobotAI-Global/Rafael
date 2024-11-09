@@ -350,7 +350,7 @@ class ControllerIO:
             ret     = self.GetTestCellDoorSensor()
             
             if (time.time() - t_start) > timeout:
-                logger.info('Test Cell Door Timeout', 'E')
+                logger.info('Test Cell Door Timeout')
                 break
             
         return ret  

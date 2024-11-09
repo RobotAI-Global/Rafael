@@ -649,12 +649,12 @@ class MonitorGUI:
         # read pose
         logger.info('Robot read pose ... ') 
         
-        # maybe already running
-        if self.rbm is None or self.rbm.Connected() is False:
-            logger.info('Connect to the robot first ...')
-            return [0]*6
+        # # maybe already running
+        # if self.rbm is None or self.rbm.Connected() is False:
+        #     logger.info('Connect to the robot first ...')
+        #     return [0]*6
         
-        res = self.rbm.GetPosition() #getTool_xyzrxryrz()
+        res = self.prg.rbm.GetPosition() #getTool_xyzrxryrz()
         robotPose = res[1]
         
         robotPose[0] = robotPose[0] * 1000

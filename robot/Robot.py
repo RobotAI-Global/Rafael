@@ -391,7 +391,7 @@ class Robot:
           
         quart   = current[3:7]
         rpy     = self.quaternion_to_rpy(quart[0],quart[1],quart[2],quart[3])
-        logger.info('RPY' , rpy)
+        logger.info('RPY')
         return current
     
     def get_pose_euler(self):
@@ -402,12 +402,12 @@ class Robot:
         rpy_deg = [a*180/np.pi for a in rpy]
         p_mm    = [pp*1000 for pp in p[:3]]
         pose    = [p_mm[0], p_mm[1], p_mm[2], rpy_deg[0], rpy_deg[1], rpy_deg[2]]
-        logger.info('Euler pose: ' , pose)
+        logger.info('Euler pose: %s'  %str(pose))
         return pose    
     
     def set_pose_euler(self, pose):
         "set pose in mm and euler rotation angles"
-        logger.info('Euler pose: ' , pose)     
+        logger.info('Euler pose: %s'  %str(pose))    
         rpy     = [a/180*np.pi for a in pose[3:6]]
         quat     = self.rpy_to_quaternion(rpy[0],rpy[1],rpy[2])
         p_m      = [pp/1000 for pp in pose[:3]]
@@ -756,7 +756,6 @@ class Robot:
 #                time.sleep(0.1)                
 #                
         logger.info('MovePathPoints done')
-        
 
     def PickTestConnector(self):
         "picking test connector"
@@ -813,10 +812,8 @@ class Robot:
         
     def PickUUTFromTable(self):
         "pick UUT to be tested"
-        #pose = self.get_point_pose(g_Type = "Position", g_PosName = "Home")
-        #self.set_pose(pose)
         
-        point_list = ['Home', 'AboveTable','TakePart','AboveTable','InfrontDoor']
+        point_list = ['Home', 'AboveTable','TakePart','AboveTable','Home','InfrontDoor']
         self.MovePathPoints(point_list)
 
 
@@ -828,8 +825,6 @@ class Robot:
     
     def LoadUUTToTester(self):
         "loads UUT to tester"
-        #pose = self.get_point_pose(g_Type = "Position", g_PosName = "Home")
-        #self.set_pose(pose)
         
         point_list = ['InfrontDoor','InfrontTestStand','TestStand']
         self.MovePathPoints(point_list)
@@ -837,17 +832,17 @@ class Robot:
         # lock UUT on tester
         
         return True  
-
-    def Print(self, txt='',level='I'):
-        ptxt = 'ROB: %s' % str(txt)
-        if level == 'I':
-            logger.info(ptxt)
-        if level == 'W':
-            logger.warning(ptxt)
-        if level == 'E':
-            logger.error(ptxt)
+    
+    def UnLoadUUTFromTester(self):
+        "loads UUT to tester"
         
-        #print(ptxt)        
+        point_list = ['InfrontTestStand','InfrontDoor','Home']
+        self.MovePathPoints(point_list)
+        
+        # lock UUT on tester
+        
+        return True      
+     
 
 #%% Tests           
 class TestRobotAPI: #unittest.TestCase
