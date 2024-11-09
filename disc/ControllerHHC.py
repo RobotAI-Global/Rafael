@@ -14,6 +14,7 @@ Usage:
 -----------------------------
  Ver    Date     Who    Descr
 -----------------------------
+0302    09.11.24 UD     logger improve
 0301    11.10.24 UD     2 x IO interface. New IP
 0202    12.09.24 UD     IO interface
 0101    11.08.24 UD     Created
@@ -26,9 +27,13 @@ import socket
 from threading import Thread
 import time
 
-#%% Logger
-import logging
-logger      = logging.getLogger("robot")
+try:
+    from gui.Logger import logger
+    print('main app')
+except:
+    import logging
+    logger      = logging.getLogger("robotai")
+    print('local debug')
 
 #%%
 class IOController:
@@ -51,16 +56,20 @@ class IOController:
     def Init(self):
         
         self.uut_counter   = 0
-        self.tprint('Init')
+        logger.info('Init')
         
         
     def Connect(self):
         # Create a TCP/IP socket
+        #if not self.IsConnected():
         self.client_socket  = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         
         # connect to the server, if result = 0 connection is OK
         result              = self.client_socket.connect((self.ServerIp, self.ServerPort))
-        self.tprint('Connected to the controller.')
+        logger.info('Connected to the controller.')
+        # else:
+        #     result              = True
+        #     logger.info('Reusing previous connection.')
         
         return result
     
@@ -75,16 +84,21 @@ class IOController:
         # chekc if the IOs are in correct position
         ret = True
         return ret    
+    
+    def Default(self):
+        # set default values
+        ret = True
+        return ret      
         
     def SendDataToController(self, cCommand):
         # Send data to the server       
         self.client_socket.sendall(cCommand.encode())
-        #self.tprint('Message sent to the controller:', cCommand)        
+        #logger.info('Message sent to the controller:', cCommand)        
     
     def ReciveDataFromController(self, cCommand, cNumber):
         # Receive data from the server
         self.data = self.client_socket.recv(1024).decode()
-        #self.tprint('Message received from the controller:', self.data)       
+        #logger.info('Message received from the controller:', self.data)       
 
         if cCommand == 'input':
             # Take only the data from the return string 'input00000000'
@@ -113,9 +127,9 @@ class IOController:
         self.SendDataToController('input')
         # get input status
         res = self.ReciveDataFromController('input', iNumber) # self.rValue
-        #self.tprint('GetInputStatus : %s' %str(self.rValue))
+        #logger.info('GetInputStatus : %s' %str(self.rValue))
         
-        #self.tprint(f'Input {iNumber} : {res}')
+        logger.debug(f'Input {iNumber} : {res}')
         return res
     
     def SetOutput(self, iNumber, Cmnd = 'on', sDelay = '00'):
@@ -138,7 +152,7 @@ class IOController:
         self.SendDataToController(self.sOutput) 
         # get relay status
         self.rValue = self.ReciveDataFromController('output', iNumber)
-        self.tprint('SetOutput %s : %s' %(str(iNumber),str(self.rValue)))
+        logger.debug('SetOutput %s : %s' %(str(iNumber),str(self.rValue)))
         
         return self.rValue
     
@@ -157,13 +171,13 @@ class IOController:
         # get relay status
         self.rValue = self.ReciveDataFromController('output', iNumber)
         
-        self.tprint('ResetOutput : %s' %str(iNumber))
+        logger.debug('ResetOutput : %s' %str(iNumber))
         return self.rValue
         
     def CloseConnectionWithController(self):
         # close the connection
         self.client_socket.close()
-        self.tprint('Connection with the controller closed.')
+        logger.info('Connection with the controller closed.')
         
     def Close(self):
         "dublicated"
@@ -192,11 +206,11 @@ class IOController:
         return True 
     
     def Start(self):
-        self.tprint('Start')    
+        logger.info('Start')    
         self.RunThread()
         
     def Stop(self):
-        self.tprint('Stop') 
+        logger.info('Stop') 
         self.stopTask = True
         self.ts.join()          
     
@@ -205,7 +219,7 @@ class IOController:
 #    ## ------------------------------------        
 #    def SetTableHome(self):
 #        # go to home position
-#        self.tprint('Starting Homing ...')
+#        logger.info('Starting Homing ...')
 #        
 #        home_sensor = False
 #        while not home_sensor:
@@ -217,12 +231,12 @@ class IOController:
 #        
 #    def GetTableIndex(self):
 #        # go to home position
-#        self.tprint('Current table position ...')
+#        logger.info('Current table position ...')
 #        return True
 #    
 #    def NextTableIndex(self, increment = 1):
 #        # go to next position
-#        self.tprint('Next table position ...')
+#        logger.info('Next table position ...')
 #        
 #        # two stations
 #        self.MoveTableIndex()
@@ -241,25 +255,25 @@ class IOController:
             
     def Status(self):
         self.GetInputStatus()
-        self.tprint(f'Checking status')
+        logger.info(f'Checking status')
         
     def Reset(self):
         # get specific bit info
         addr = 0
         self.ResetOutput(addr)
-        self.tprint(f'IO reset {addr}') 
+        logger.info(f'IO reset {addr}') 
         
     def GetInfo(self):
         # get specific bit info
         val = self.GetInputStatus(0)
-        self.tprint(f'IO received {val}')
+        logger.info(f'IO received {val}')
         
     def SetInfo(self):
         # get specific bit info  
         addr = 0
         val = 1
         self.ioc.SetOutput(addr,val)
-        self.tprint(f'IO sending value {val} to {addr}')
+        logger.info(f'IO sending value {val} to {addr}')
         
 #    def CheckAirSupply(self):
 #        "check if air is in"
@@ -276,44 +290,28 @@ class IOController:
 #        return True 
     
 
-             
-
-    def tprint(self, txt='',level='I'):
-        
-        ptxt = '%s : %s' %(self.ServerIp,str(txt))
-        if level == 'I':
-            #ptxt = 'I: IOC: %s' % txt
-            logger.info(ptxt)
-        if level == 'W':
-            #ptxt = 'W: IOC: %s' % txt
-            logger.warning(ptxt)
-        if level == 'E':
-            #ptxt = 'E: IOC: %s' % txt
-            logger.error(ptxt)
-            
-        #print(ptxt)
-            
+ 
         
     def Test(self):
         self.Connect()
         
         # turn on relay 1 with no delay
         self.rStatus = self.SetOutput(1, '00')
-        self.tprint('output 1:', self.rStatus)
+        logger.info('output 1:', self.rStatus)
         
         # turn off relay 1 with no delay
         self.rStatus = self.ResetOutput(1)
-        self.tprint('output 1:', self.rStatus)
+        logger.info('output 1:', self.rStatus)
         
         # turn on relay 1 with delay of 5 sec
         self.rStatus = self.SetOutput(1, '05')
-        self.tprint('output 1:', self.rStatus)
+        logger.info('output 1:', self.rStatus)
         
         # get input 1 
         self.rStatus = self.GetInputStatus(1)
-        self.tprint('input 1:', self.rStatus)             
+        logger.info('input 1:', self.rStatus)             
         
-        self.CloseConnectionWithController()   
+        self.Close()   
         
     def TestScan(self):
         "scanning all inputs"

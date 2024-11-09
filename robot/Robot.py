@@ -14,6 +14,7 @@ Usage:
 -----------------------------
  Ver    Date     Who    Descr
 -----------------------------
+0302    09.11.24 UD     logger improve
 0301    03.11.24 UD     Define In/Out
 0202    12.09.24 UD     IO interface
 0201    23.08.24 UD     New robot interface
@@ -24,12 +25,9 @@ Usage:
 
 
 import socket
-#import ast
 from types import MethodType
-#import logging as log
 import sys
 import os
-#from logging.handlers import TimedRotatingFileHandler
 import json
 from threading import Thread
 import time
@@ -55,63 +53,10 @@ SOCKET_PORT = 65432
 
 #%% Logger
 
-import logging
-logger      = logging.getLogger("robot")
+#import logging
+#logger      = logging.getLogger("robot")
 
-#%%
-
-##log.basicConfig(level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)6s:%(lineno)3d} %(levelname)s - %(message)s',  datefmt="%M:%S")
-##log.basicConfig(stream=sys.stdout, level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)s:%03(lineno)d} %(levelname)s - %(message)s',  datefmt="%M:%S")
-#formatter   = logging.Formatter('[%(asctime)s] - [%(filename)12s:%(lineno)3d] - %(levelname)s - %(message)s')
-#logger.setLevel("DEBUG")
-#
-#console_handler = logging.StreamHandler()
-#console_handler.setLevel("DEBUG")
-#console_handler.setFormatter(formatter)
-#logger.addHandler(console_handler)
-
-#class CustomFormatter(logging.Formatter):
-#
-#    grey = "\x1b[38;20m"
-#    yellow = "\x1b[33;20m"
-#    red = "\x1b[31;20m"
-#    bold_red = "\x1b[31;1m"
-#    reset = "\x1b[0m"
-#    format = (
-#        "[%(asctime)s][%(name)s][%(levelname)s] : %(message)s :(%(filename)s:%(lineno)d)"
-#    )
-#
-#    FORMATS = {
-#        logging.DEBUG: grey + format + reset,
-#        logging.INFO: grey + format + reset,
-#        logging.WARNING: yellow + format + reset,
-#        logging.ERROR: red + format + reset,
-#        logging.CRITICAL: bold_red + format + reset,
-#    }
-#
-#    def format(self, record):
-#        log_fmt = self.FORMATS.get(record.levelno)
-#        formatter = logging.Formatter(log_fmt,datefmt="%Y-%m-%d %H:%M:%S")
-#        return formatter.format(record)
-#
-#
-#def get_console_handler():
-#    console_handler = logging.StreamHandler(sys.stdout)
-#    console_handler.setLevel(eval('logging.'+LOGLEVEL))
-#    console_handler.setFormatter(CustomFormatter())
-#    return console_handler
-#
-#
-#def get_logger(logger_name):
-#    logger = logging.getLogger(logger_name)
-#    #if not logger.hasHandlers():
-#    logger.addHandler(get_console_handler())
-#    print('Console')
-#    logger.setLevel(logging.DEBUG)
-#    logger.propagate = False
-#    return logger
-#
-#neurapy_logger = get_logger("neurapy_logger")
+from gui.Logger import logger
 
 
 #%% Main
@@ -131,7 +76,7 @@ def generate_function(function_name, address):
             else:
                 win32api.SetConsoleCtrlHandler(self.stop, True)
         except Exception as e:
-            self.logger.debug("Not attaching signal handlers")
+            logger.debug("Not attaching signal handlers")
             print(e)
             
         #self.logger.info(f"{function_name} called with args {args}, {kwargs}")
@@ -141,7 +86,7 @@ def generate_function(function_name, address):
         sock.close()
         response = json.loads(new_data.decode("utf-8"))
         if response["error"]:
-            self.logger.error(f"{function_name} call with args {args}, {kwargs}, failed with exception {response['error']}")
+            logger.error(f"{function_name} call with args {args}, {kwargs}, failed with exception {response['error']}")
             raise Exception(response["error"])
         return response["result"]
 
@@ -159,11 +104,11 @@ class Robot:
         
         self.counter            = 0
         self.multiplier         = 1
-        self.logger             = logger
+        #self.logger             = logger
         
         self.is_alive           = False
         
-        self.tprint('Robot IF is created')
+        logger.info('Robot IF is created')
         
     def connect(self):
         "start communication"
@@ -186,30 +131,24 @@ class Robot:
                     method,
                     MethodType(generate_function(method, self.__server_address), self),
                 )     
-        self.logger.info(f"Robot initialized with following functions {self.__functions} and robot version {self.version}")
+        logger.info(f"Robot initialized with following functions {self.__functions} and robot version {self.version}")
         if self.version != VERSION:
-            self.logger.warning(f"Current client version is not compatiable with the version of the server running on the robot. Some of the functionlities specified in the documentation might not work in the intended way. Please upgrade to the correct version .Client Version : {VERSION},Server Version : {self.version}")
+            logger.warning(f"Current client version is not compatiable with the version of the server running on the robot. Some of the functionlities specified in the documentation might not work in the intended way. Please upgrade to the correct version .Client Version : {VERSION},Server Version : {self.version}")
         
         #self.start_diagnostics_monitor()
         
-        self.tprint('Collision is disabled')
+        logger.info('Collision is disabled')
         self.disable_collision_detection()
         
-        self.tprint('Automatic mode')
+        logger.info('Automatic mode')
         self.power_on()
         self.switch_to_automatic_mode()
         
-        self.tprint('Connetcion Created')
+        logger.info('Connetcion Created')
         
     def help(self, name):
         print(self.get_doc(name))
     
-    def tprint(self, txt, stam = None):
-        "stam supports print line 2 arguments"
-        txt = txt + str(stam) if stam is not None else txt
-        self.logger.info(txt)
-        #print(txt)
-        
         
     def list_methods(self):
         """To list the available functions in the API"""
@@ -218,7 +157,7 @@ class Robot:
         #table.field_names = ['S.No',"Function Name"]
         for index, method in enumerate(methods):
             #table.add_row([index+1,method])
-            self.tprint(method)
+            logger.info(method)
         return table
         
     def notify_diagnostics(self):
@@ -240,12 +179,12 @@ class Robot:
         
 
     def robot_info(self):     
-        self.tprint('Robot Name: ',       self.robot_name)
-        self.tprint('Number Of Axis: ',   self.dof)
-        self.tprint('Robot IP Address: ', self.kURL)
-        self.tprint('Home Position: ',    self.get_point("Home"))
-        self.tprint('Current Joint Angles: ', self.robot_status("jointAngles"))
-        self.tprint('Current Position: ', self.robot_status("cartesianPosition"))            
+        print('Robot Name: ',       self.robot_name)
+        print('Number Of Axis: ',   self.dof)
+        print('Robot IP Address: ', self.kURL)
+        print('Home Position: ',    self.get_point("Home"))
+        print('Current Joint Angles: ', self.robot_status("jointAngles"))
+        print('Current Position: ', self.robot_status("cartesianPosition"))            
             
     def set_io(self, io_name = "DO_1", target_value = True):    # Input -> Which I/O, On/Off
         isSuccess = self.r.io("get", io_name, target_value)
@@ -261,7 +200,7 @@ class Robot:
         elif pwr_switch == False:
             isSuccess = self.r.power_off()
         else:
-            self.tprint("robotMode: Wrong mode is provided: %s"%pwr_switch)
+            logger.info("robotMode: Wrong mode is provided: %s"%pwr_switch)
 
         return isSuccess
         
@@ -273,7 +212,7 @@ class Robot:
         elif rMode == "semi_automatic":
             isSuccess = self.r.switch_to_semi_automatic_mode()
         else:
-            self.tprint("robotMode: Wrong mode is provided: %s"%rMode)
+            logger.info("robotMode: Wrong mode is provided: %s"%rMode)
             isSuccess = False
 
         return isSuccess  
@@ -286,7 +225,7 @@ class Robot:
             isMotionOk = self.move_linear_to_coord_from_current_pose(tx, ty, tz, r, p, y, speed, acceleration, blend_radius)
         else:
             isMotionOk = False
-            print("moveLinearToPoint: Can not read point position")
+            logger.info("moveLinearToPoint: Can not read point position")
 
         return isMotionOk # move is successful 
     
@@ -296,7 +235,7 @@ class Robot:
         coordList = self.mmd_To_mr(coordList)
         
         #   Debug print
-        print("Debug: moveLinearToCoord_fromCurrentPose: Coordinate that given to move: %s"%(str(coordList)))
+        logger.info("Debug: moveLinearToCoord_fromCurrentPose: Coordinate that given to move: %s"%(str(coordList)))
 
         linear_property = {
                 "speed": speed,
@@ -314,28 +253,28 @@ class Robot:
     def is_connected(self):
         # check if the robot exists
         try:
-            self.tprint('Robot Name: ', self.robot_name)
+            logger.info('Robot Name: ', self.robot_name)
             ret = True
         except:
-            self.tprint('Can not locate the robot')
+            logger.info('Can not locate the robot')
             ret = False
         return ret     
     
 #    def RobotData(self):   
 #        
-#        self.tprint('Robot Name: ', self.r.robot_name)
-#        self.tprint('Number Of Axis: ', self.r.dof)
-#        self.tprint('robot IP Address: ', self.r.kURL)
-#        self.tprint('Home Position: ', self.r.get_point("Home"))
-#        self.tprint('Current Joint Angles: ', self.r.robot_status("jointAngles"))
-#        self.tprint('Current Position: ', self.r.robot_status("cartesianPosition"))
+#        logger.info('Robot Name: ', self.r.robot_name)
+#        logger.info('Number Of Axis: ', self.r.dof)
+#        logger.info('robot IP Address: ', self.r.kURL)
+#        logger.info('Home Position: ', self.r.get_point("Home"))
+#        logger.info('Current Joint Angles: ', self.r.robot_status("jointAngles"))
+#        logger.info('Current Position: ', self.r.robot_status("cartesianPosition"))
         
 #    def RobotPower(self, value = 'on'):
 #        # r.power('on') / r.power('off')
 #        if value in ['on','off']:
 #            self.power(str(value))
 #        else:
-#            self.tprint(f'input must be on or off - given {value}')
+#            logger.info(f'input must be on or off - given {value}')
             
     def get_robot_status(self):
         sts = self.robot_status()
@@ -353,7 +292,7 @@ class Robot:
 #        # r.move_joint(target_joint2,speed=100,accelearation=70)
 #        
 #        self.move_joint(JointAngles, speed = j_Speed, accelearation = j_Acc)
-#        self.tprint("move_joint")
+#        logger.info("move_joint")
         
 #    def MoveLinear(self, Position, l_Speed, l_Acc):
 #        #r.move_linear(p)
@@ -367,7 +306,7 @@ class Robot:
 #        # r.move_linear(target_Position,speed=0.5,accelearation=0.5)
 #        
 #        self.r.move_linear_from_current_position(Position, speed = l_Speed, accelearation = l_Acc)
-#        self.tprint("move_linear")
+#        logger.info("move_linear")
         
     def get_digital_io_input(self, InputName = 1):
         #print(r.io("get",io_name="DO_1"))
@@ -378,7 +317,7 @@ class Robot:
 #            val = False
 #        else:
 #            val = True
-#        self.tprint(val)     
+#        logger.info(val)     
         return val
     
     def get_digital_io_output(self, InputName = 1):
@@ -390,7 +329,7 @@ class Robot:
 #            val = False
 #        else:
 #            val = True
-#        self.tprint(val)    
+#        logger.info(val)    
         return val    
     
     def set_digital_io_output(self, OutputName, Action):
@@ -409,14 +348,14 @@ class Robot:
             Action = True if Action == 'on' else False
             
         io_set = self.set_digital_output(OutputName,Action)
-        #self.tprint(io_set)
+        #logger.info(io_set)
         return io_set
 
             
     def get_analog_io(self, input_id = 1):
         "analog io"
         io_get = self.get_analog_input(input_id)
-        self.tprint(io_get)
+        logger.info(io_get)
             
     def set_gripper(self, Action):
         # r.gripper("close")
@@ -440,7 +379,7 @@ class Robot:
 #        elif g_Type == 'Joint':
 #            target = [p['a1'], p['a2'], p['a3'], p['a4'], p['a5'], p['a6']]
             
-        #self.tprint(str(target))
+        #logger.info(str(target))
         return target  
     
     def get_current_pose(self, g_Type = 'Position'):
@@ -452,7 +391,7 @@ class Robot:
           
         quart   = current[3:7]
         rpy     = self.quaternion_to_rpy(quart[0],quart[1],quart[2],quart[3])
-        print('RPY' , rpy)
+        logger.info('RPY' , rpy)
         return current
     
     def get_pose_euler(self):
@@ -463,12 +402,12 @@ class Robot:
         rpy_deg = [a*180/np.pi for a in rpy]
         p_mm    = [pp*1000 for pp in p[:3]]
         pose    = [p_mm[0], p_mm[1], p_mm[2], rpy_deg[0], rpy_deg[1], rpy_deg[2]]
-        self.tprint('Euler pose: ' , pose)
+        logger.info('Euler pose: ' , pose)
         return pose    
     
     def set_pose_euler(self, pose):
         "set pose in mm and euler rotation angles"
-        self.tprint('Euler pose: ' , pose)     
+        logger.info('Euler pose: ' , pose)     
         rpy     = [a/180*np.pi for a in pose[3:6]]
         quat     = self.rpy_to_quaternion(rpy[0],rpy[1],rpy[2])
         p_m      = [pp/1000 for pp in pose[:3]]
@@ -488,9 +427,9 @@ class Robot:
         "compatability"
         self.power_on()
         self.switch_to_automatic_mode()  
-        self.Print('Start')
+        logger.info('Start')
         
-    def Stop(self, value):
+    def Stop(self):
         # stop the robot
         self.stop()   
         
@@ -511,63 +450,63 @@ class Robot:
         "check input THP"
         val = self.get_digital_io_input(0)
         ret = val > 0.5
-        #self.tprint(f'CheckTableHomePosition : {ret}')
+        logger.debug(f'CheckTableHomePosition : {ret}')
         return ret
     
     def CheckTableUnloadPosition(self):
         "check input PIPL"
         val = self.get_digital_io_input(1)
         ret = val > 0.5
-        self.tprint(f'CheckTableUnloadPosition : {ret}')
+        logger.debug(f'CheckTableUnloadPosition : {ret}')
         return ret  
     
     def CheckGripperPush(self):
         "check input GRHP"
         val1 = self.get_digital_io_input(3)
         ret  = val1 > 0.5 
-        self.tprint(f'CheckGripperPush : {ret}')
+        logger.debug(f'CheckGripperPush : {ret}')
         return ret  
     
     def CheckGripperPull(self):
         "check input GRHP"
         val1 = self.get_digital_io_input(2)
         ret  = val1 > 0.5 
-        self.tprint(f'CheckGripperPull : {ret}')
+        logger.debug(f'CheckGripperPull : {ret}')
         return ret     
     
     def CheckLinearCylinderForward(self):
         "check linear cylinder forward"
         val = self.get_digital_io_input(5)
         ret  = val > 0.5
-        self.tprint(f'CheckLinearCylinderForward : {ret}')
+        logger.debug(f'CheckLinearCylinderForward : {ret}')
         return ret 
     
     def CheckLinearCylinderBackward(self):
         "check linear cylinder"
         val1 = self.get_digital_io_input(4)
         ret  = val1 > 0.5
-        self.tprint(f'CheckLinearCylinderBackward : {ret}')
+        logger.debug(f'CheckLinearCylinderBackward : {ret}')
         return ret     
     
     def CheckGripperClampClose(self):
         "check input GRCL"
         val1 = self.get_digital_io_input(7)
         ret  = val1 > 0.5
-        self.tprint(f'CheckGripperClampClose : {ret}')
+        logger.debug(f'CheckGripperClampClose : {ret}')
         return ret  
     
     def CheckGripperClampOpen(self):
         "check input GRCL"
         val1 = self.get_digital_io_input(6)
         ret  = val1 > 0.5 
-        self.tprint(f'CheckGripperClampOpen : {ret}')
+        logger.debug(f'CheckGripperClampOpen : {ret}')
         return ret  
     
     def CheckTableDriverOutputOn(self):
         "check if digital output is active"
         val1 = self.get_digital_io_output(3)
         ret  = val1 > 0.5 
-        self.tprint('CheckTableDriverOutputOn : %s' %str(ret))
+        logger.debug('CheckTableDriverOutputOn : %s' %str(ret))
         return ret     
     
     # ----------------------------
@@ -578,7 +517,7 @@ class Robot:
         val1 = self.set_digital_io_output(0, 'on') # none
         val2 = self.set_digital_io_output(1, 'off')
         ret  = val1 and val2 
-        self.tprint(f'SetLinearCylinderForward : {ret}')
+        logger.info(f'SetLinearCylinderForward : {ret}')
         return ret  
     
     def SetLinearCylinderBackward(self):
@@ -586,14 +525,14 @@ class Robot:
         val1 = self.set_digital_io_output(0, 'off')
         val2 = self.set_digital_io_output(1, 'on')
         ret  = val1 and val2 
-        self.tprint(f'SetLinearCylinderBackward : {ret}')
+        logger.info(f'SetLinearCylinderBackward : {ret}')
         return ret 
 
     def SetTableDriver(self, on_off = 'off'):
         "enable one index table"
         val1 = self.set_digital_io_output(3, on_off)
         ret  = val1 
-        #self.tprint(f'SetTableDriver : {ret}')
+        #logger.info(f'SetTableDriver : {ret}')
         return ret  
     
     def SetGripperClampOpen(self):
@@ -601,7 +540,7 @@ class Robot:
         val1 = self.set_digital_io_output(4, 'off')
         val2 = self.set_digital_io_output(5, 'on')
         ret  = val1 and val2 
-        self.tprint(f'SetGripperClampOpen : {ret}')
+        logger.info(f'SetGripperClampOpen : {ret}')
         return ret    
     
     def SetGripperClampClose(self):
@@ -609,69 +548,86 @@ class Robot:
         val1 = self.set_digital_io_output(4, 'on')
         val2 = self.set_digital_io_output(5, 'off')
         ret  = val1 and val2 
-        self.tprint(f'SetGripperClampClose : {ret}')
+        logger.info(f'SetGripperClampClose : {ret}')
         return ret 
 
     def SetGripperCoverPush(self):
         "open cover "
         val1 = self.set_digital_io_output(6, 'on')
         ret  = val1  
-        self.tprint(f'SetGripperCoverPush : {ret}')
+        logger.info(f'SetGripperCoverPush : {ret}')
         return ret    
     
     def SetGripperCoverPull(self):
         "open cover pull"
         val1 = self.set_digital_io_output(6, 'off')
         ret  = val1  
-        self.tprint(f'SetGripperCoverPull : {ret}')
+        logger.info(f'SetGripperCoverPull : {ret}')
         return ret  
     
     def SetGripperMembraneOn(self):
         "open cover "
         val1 = self.set_digital_io_output(7, 'on')
         ret  = val1  
-        self.tprint(f'SetGripperMembraneOn : {ret}')
+        logger.info(f'SetGripperMembraneOn : {ret}')
         return ret    
     
     def SetGripperMembraneOff(self):
         "open cover pull"
         val1 = self.set_digital_io_output(7, 'off')
         ret  = val1  
-        self.tprint(f'SetGripperMembraneOff : {ret}')
+        logger.info(f'SetGripperMembraneOff : {ret}')
         return ret     
 
     # ----------------------------
     # robot linear stage functionality 
     # ----------------------------  
-    def MoveLinearCylinderForward(self, timeout = 5):
-        "set linear cylinder forward and wait for reaching the position"
-        ret = self.SetLinearCylinderForward() # 
-        ret = self.CheckLinearCylinderForward()
-        t_start = time.time()
-        while not ret:
-            time.sleep(0.2)
-            ret = self.CheckLinearCylinderForward()
-            if time.time() - t_start > timeout:
-                self.tprint('MoveLinearCylinderForward - timeout')
-                break
-        
-        self.tprint(f'MoveLinearCylinderForward : {ret}')
-        return ret 
-
     def MoveLinearCylinderBackward(self, timeout = 5):
-        "set linear cylinder backward and wait for reaching the position"
-        # timeout = self.TIMEOUT_CYLINDER
-        ret = self.SetLinearCylinderBackward() # 
+        "moving the linear cylinder - axis 7 back"
+        logger.info('Moving cylinder back ...')  
+        
+        ret = self.CheckLinearCylinderBackward()
+        if ret:
+            logger.info('Cylinder in the back position','E')
+            return
+        
+        self.SetLinearCylinderBackward()     
+        
+        # wait for the cylinder
         ret = self.CheckLinearCylinderBackward()
         t_start = time.time()
         while not ret:
-            time.sleep(0.2)
+            #time.sleep(0.2)
             ret = self.CheckLinearCylinderBackward()
             if time.time() - t_start > timeout:
-                self.tprint('MoveLinearCylinderForward - timeout')
+                logger.warning('Cylinder backward move - timeout ')
                 break
         
-        self.tprint(f'MoveLinearCylinderForward : {ret}')
+        logger.info('Moving cylinder - Done')  
+        return ret 
+    
+    def MoveLinearCylinderForward(self, timeout = 5):
+        "moving the linear cylinder - axis 7 back"
+        logger.info('Moving cylinder forward ...')  
+        
+        ret = self.CheckLinearCylinderForward()
+        if ret:
+            logger.info('Cylinder in the forward position','E')
+            return
+        
+        self.SetLinearCylinderForward()     
+        
+        # wait for the cylinder
+        ret = self.CheckLinearCylinderForward()
+        t_start = time.time()
+        while not ret:
+            #time.sleep(0.2)
+            ret = self.CheckLinearCylinderForward()
+            if time.time() - t_start > timeout:
+                logger.warning('Cylinder forward move - timeout ')
+                break
+        
+        logger.info('Moving cylinder - Done')  
         return ret 
          
     # ----------------------------
@@ -686,10 +642,10 @@ class Robot:
             time.sleep(0.2)
             ret = self.CheckGripperClampOpen()
             if time.time() - t_start > timeout:
-                self.tprint('GripperClampOpen - timeout')
+                logger.info('GripperClampOpen - timeout')
                 break
         
-        self.tprint(f'GripperClampOpen : {ret}')
+        logger.info(f'GripperClampOpen : {ret}')
         return ret     
     
     def GripperClampClose(self, timeout = 5):
@@ -701,10 +657,10 @@ class Robot:
             time.sleep(0.2)
             ret = self.CheckGripperClampClose()
             if time.time() - t_start > timeout:
-                self.tprint('GripperClampClose - timeout')
+                logger.info('GripperClampClose - timeout')
                 break
         
-        self.tprint(f'GripperClampClose : {ret}')
+        logger.info(f'GripperClampClose : {ret}')
         return ret 
 
     def GripperCoverPush(self, timeout = 5):
@@ -716,10 +672,10 @@ class Robot:
             time.sleep(0.2)
             ret = self.CheckGripperPush()
             if time.time() - t_start > timeout:
-                self.tprint('GripperCoverPush - timeout')
+                logger.info('GripperCoverPush - timeout')
                 break
         
-        self.tprint(f'GripperCoverPush : {ret}')
+        logger.info(f'GripperCoverPush : {ret}')
         return ret 
 
     def GripperCoverPull(self, timeout = 5):
@@ -731,10 +687,10 @@ class Robot:
             time.sleep(0.2)
             ret = self.CheckGripperPull()
             if time.time() - t_start > timeout:
-                self.tprint('GripperCoverPull - timeout')
+                logger.info('GripperCoverPull - timeout')
                 break
         
-        self.tprint(f'GripperCoverPull : {ret}')
+        logger.info(f'GripperCoverPull : {ret}')
         return ret      
 
     # ----------------------------
@@ -790,34 +746,34 @@ class Robot:
             for pname in point_list:
                 next_pose = self.get_point_pose('Position', pname)
                 self.move_linear_from_current_position([next_pose], 5, 1)
-                self.tprint('Finished : %s' %pname)
+                logger.info('Finished : %s' %pname)
                 time.sleep(0.1)
                 
 #            for pname in point_list_reverse:
 #                next_pose = self.get_point_pose('Position', pname)
 #                self.move_linear_from_current_position([next_pose], 5, 1) 
-#                self.tprint('Finished : %s' %pname)
+#                logger.info('Finished : %s' %pname)
 #                time.sleep(0.1)                
 #                
-        self.tprint('MovePathPoints done')
+        logger.info('MovePathPoints done')
         
 
     def PickTestConnector(self):
         "picking test connector"
         ret = True
-        self.Print('Pick Test Connector')  
+        logger.info('Pick Test Connector')  
         return ret
     
     def PutTestConnector(self):
         "put test connector"
         ret = True
-        self.Print('Put Test Connector')  
+        logger.info('Put Test Connector')  
         return ret        
     
     def PlugTestConnectorInUUT(self):
         "plug test connector"
         ret = True
-        self.Print('Plug Test Connector')  
+        logger.info('Plug Test Connector')  
         
         # move
         
@@ -829,7 +785,7 @@ class Robot:
     def UnPlugTestConnectorInUUT(self):
         "unplug"
         ret = True
-        self.Print('UnPlug Test Connector')  
+        logger.info('UnPlug Test Connector')  
         
         # move
         
@@ -841,7 +797,7 @@ class Robot:
     def GetUUTOut(self):
         "compatability"
         ret = True
-        self.Print('GetUUTOut')  
+        logger.info('GetUUTOut')  
         return ret 
     
     def PutUUTOnTable(self):
@@ -1019,17 +975,6 @@ class TestRobotAPI: #unittest.TestCase
         
     def TestPathMotion(self):
         "move between differnet points defined in the robot"
-        
-        #self.r.power_on()
-        #self.r.switch_to_automatic_mode()
-        
-#        point_list = ['Home', 'AboveTable','TakePart','AboveTable']
-#        repeat_num = 5
-#        for k in range(repeat_num):
-#            for pname in point_list:
-#                next_pose = self.r.get_point_pose('Position', pname)
-#                self.r.move_linear_from_current_position([next_pose], 5, 1) 
-#                time.sleep(1)
         
         self.r.MovePathPoints()
                 

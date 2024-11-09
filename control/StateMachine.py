@@ -6,11 +6,11 @@ Implements the logic
 @author: zion
 """
 
-# Logger
-import logging as log
-#import sys
+# # Logger
+# import logging as log
+# #import sys
 
-log.basicConfig(level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s',  datefmt="%M:%S")
+# log.basicConfig(level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s',  datefmt="%M:%S")
 
 
 #%% 

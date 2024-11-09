@@ -56,14 +56,16 @@ from scipy.linalg import expm, inv
 from numpy import linspace
 try:
     from gui.ConfigManager import ConfigManager 
+    from gui.Logger import logger
 except:
+    import logging
+    logger                  = logging.getLogger("robotai")
     ConfigManager = None
     print('Running standalone mode')
 #import pylab as m
 
 import unittest
-import logging
-logger                  = logging.getLogger("robotai")
+
 
 
 #%% Help functions

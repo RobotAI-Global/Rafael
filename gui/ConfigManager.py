@@ -30,7 +30,7 @@ import json
 from queue import Queue
 
 import unittest
-import logging as log
+from gui.Logger import logger
 
 
 session_json_default = {
@@ -300,13 +300,13 @@ class ConfigManager:
         
         if level == 'I':
             ptxt = 'I: CFG: %s' % txt
-            log.info(ptxt)  
+            logger.info(ptxt)  
         if level == 'W':
             ptxt = 'W: CFG: %s' % txt
-            log.warning(ptxt)  
+            logger.warning(ptxt)  
         if level == 'E':
             ptxt = 'E: CFG: %s' % txt
-            log.error(ptxt)  
+            logger.error(ptxt)  
            
         #print(ptxt)
     

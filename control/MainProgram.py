@@ -17,16 +17,14 @@ Install:
 -----------------------------
 
 """
-server_version   = '0101'
 
-#import os
-#import tkinter as tk
-#import threading
-#import json
-#import logging as log
 import time   # just to measure switch time
-#import logging
-from threading import Thread
+#from threading import Thread
+
+import os
+import sys
+parent_directory = os.path.abspath('..')
+sys.path.append(parent_directory)
 
 #base_path     = os.path.abspath(".")
 #base_path      = r'D:\RobotAI\Design\apps\PickManager\gui\logo.ico' #os.path.dirname(os.path.realpath(__file__))
@@ -39,52 +37,40 @@ from threading import Thread
 #sys.path.insert(1, r'D:\RobotAI\Customers\VineRoboticq\Code\RobotManager\robot')
 #sys.path.insert(1, r'D:\RobotAI\Customers\VineRoboticq\Code\RobotManager\vision')
 
-#import os
-# Logger
-#from gui.Logger import logger
-#import logging
-#logger      = logging.getLogger("robot")
-##formatter   = logging.Formatter('[%(asctime)s.%(msecs)03d] {%(filename)6s:%(lineno)3d} %(levelname)s - %(message)s', datefmt="%M:%S", style="{")
-#formatter   = logging.Formatter('[%(asctime)s] - [%(filename)12s:%(lineno)3d] - %(levelname)s - %(message)s')
-#logger.setLevel("DEBUG")
-#
-#console_handler = logging.StreamHandler()
-#console_handler.setLevel("DEBUG")
-#console_handler.setFormatter(formatter)
-#logger.addHandler(console_handler)
-#
-#file_handler = logging.FileHandler("main_app.log", mode="a", encoding="utf-8")
-#file_handler.setLevel("WARNING")
-#file_handler.setFormatter(formatter)
-#logger.addHandler(file_handler)
 
-#log.basicConfig(level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)6s:%(lineno)3d} %(levelname)s - %(message)s',  datefmt="%M:%S")
-
-
-#import numpy as np
-#from threading import Thread
 
 #%% 
-#try:
-from gui.ConfigManager import ConfigManager
-from robot.Robot import Robot as RobotManager
-from host.ComServer  import ComServer as HostManager
-#from control.StateMachine import StateMachine
-from disc.ControllerIO import ControllerIO
+try:
+    from gui.ConfigManager import ConfigManager
+    from robot.Robot import Robot as RobotManager
+    from host.ComServer  import ComServer as HostManager
+    from disc.ControllerIO import ControllerIO
+    from gui.Logger import logger
+
+except:
+    from ..gui.ConfigManager import ConfigManager
+    from ..disc.ControllerHHC import IOController
+    from ..robot.Robot import Robot as RobotManager
+    from ..host.ComServer  import ComServer as HostManager
+    import logging
+    logger      = logging.getLogger("robotai")
+    print('local debug')
 
 #%%
-import logging
-logger      = logging.getLogger("robot")
+# import logging
+# logger      = logging.getLogger("robot")
 
-#log.basicConfig(level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)6s:%(lineno)3d} %(levelname)s - %(message)s',  datefmt="%M:%S")
-#log.basicConfig(stream=sys.stdout, level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)s:%03(lineno)d} %(levelname)s - %(message)s',  datefmt="%M:%S")
-formatter   = logging.Formatter('[%(asctime)s] - %(levelname)s - %(message)s')
-logger.setLevel("DEBUG")
+# if not logger.handlers:
 
-console_handler = logging.StreamHandler()
-console_handler.setLevel("DEBUG")
-console_handler.setFormatter(formatter)
-logger.addHandler(console_handler)
+# 	#log.basicConfig(level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)6s:%(lineno)3d} %(levelname)s - %(message)s',  datefmt="%M:%S")
+# 	#log.basicConfig(stream=sys.stdout, level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)s:%03(lineno)d} %(levelname)s - %(message)s',  datefmt="%M:%S")
+# 	formatter   = logging.Formatter('[%(asctime)s] - %(levelname)s - %(message)s')
+# 	logger.setLevel("DEBUG")
+
+# 	console_handler = logging.StreamHandler()
+# 	console_handler.setLevel("DEBUG")
+# 	console_handler.setFormatter(formatter)
+# 	logger.addHandler(console_handler)
 
 #%% 
 # StateMachine/State.py
@@ -134,7 +120,9 @@ class Message:
 #%% 
 class MainProgram:
 
-    def __init__(self, version = "0001", module_dict = {}):
+    def __init__(self, parent = None):
+
+        self.parent     = parent
 
         self.cfg        = ConfigManager()
         self.debugOn    = False
@@ -155,35 +143,24 @@ class MainProgram:
         # connectio to IO
         self.ioc        = ControllerIO(parent = self)
         
-        self.Print('Created')
+        logger.info('Created')
         
-    def Print(self, ptxt='',level='I'):
-        txt = 'MAN: %s' %str(ptxt)
-        if level == 'I':
-            #ptxt = 'I: PRG: %s' % txt
-            logger.info(txt)
-        if level == 'W':
-            #ptxt = 'W: PRG: %s' % txt
-            logger.warning(txt)
-        if level == 'E':
-            #ptxt = 'E: PRG: %s' % txt
-            logger.error(txt)
-        #print(ptxt)        
-        
+
 
     ## -------------------------------
     #  -- Init All---
     ## -------------------------------
     def Init(self):
         "intialize all the modules - read some inint data from config file"
-        self.cfg.Init()
+        
+        #self.cfg.Init()
         self.rbm.Init()
         self.ioc.Init()
         #self.host.Init()
         #self.rsm.Init()
         self.state = STATE.INIT
         self.error = ERROR.NONE
-        self.Print('Init')
+        logger.info('Init')
         return True
         
     def Start(self):
@@ -191,7 +168,7 @@ class MainProgram:
         #self.host.Start()
         self.rbm.Start()
         self.ioc.Start()
-        self.Print('Start')
+        logger.info('Start')
         return True
     
     def Home(self):
@@ -202,7 +179,7 @@ class MainProgram:
         ret = self.rbm.Home()
         # if robot not in home position - abort
         if not ret:
-            self.Print('Failed to put robot in home posution')
+            logger.info('Failed to put robot in home posution')
             return
         
         ret = self.ioc.Home()
@@ -212,7 +189,7 @@ class MainProgram:
         #self.host.Stop()
         self.rbm.Stop()
         self.ioc.Stop()
-        self.Print('Stop')   
+        logger.info('Stop')   
         return True
         
     ## -------------------------------
@@ -224,7 +201,7 @@ class MainProgram:
         ret         = self.rbm.IsConnected() and ret
         #ret         = self.host.IsConnected() and ret
         ret         = self.ioc.IsConnected() and ret
-        self.Print('Connectivity : %s' %str(ret))
+        logger.info('Connectivity : %s' %str(ret))
         return ret   
      
     def CheckSystemHome(self):
@@ -233,7 +210,7 @@ class MainProgram:
         ret         = self.rbm.IsHome() and ret
         #ret         = self.host.IsHome() and ret
         ret         = self.ioc.IsHome() and ret
-        self.Print('Home position : %s' %str(ret))
+        logger.info('Home position : %s' %str(ret))
         return ret   
 
     def CheckSystemAirSupply(self):
@@ -242,7 +219,7 @@ class MainProgram:
         #ret         = self.rbm.IsHome() and ret
         #ret         = self.host.IsHome() and ret
         ret         = self.ioc.CheckAirSupply() and ret
-        self.Print('Air status : %s' %str(ret))
+        logger.info('Air status : %s' %str(ret))
         return ret       
     
 #    def WaitFor(self):
@@ -282,7 +259,7 @@ class MainProgram:
     ## ------------------------------------        
     def MoveTableHome(self):
         # go to home position
-        self.Print('Moving table to home position ...')
+        logger.info('Moving table to home position ...')
         
         home_sensor = self.rbm.CheckTableHomePosition()
         count       = 0
@@ -307,40 +284,40 @@ class MainProgram:
             if count > 23:
                 break 
             
-            self.Print('Count rotations : %d' %count)
+            logger.info('Count rotations : %d' %count)
             
         if home_sensor:
-            self.Print('Table in home position')
+            logger.info('Table in home position')
         else:
-            self.Print('Table home is not found','E')
+            logger.warning('Table home is not found','E')
             
             
         return home_sensor
     
     def MoveTableNextStation(self):
         "next station - 2 index moves"
-        self.Print('Moving table to next station ...')
+        logger.info('Moving table to next station ...')
         
         ret = self.MoveTableIndex()
         if not ret:
-            self.Print('Can not move to the next index 1','E')
+            logger.warning('Can not move to the next index 1')
             return ret
         
         ret = self.MoveTableIndex()
         if not ret:
-            self.Print('Can not move to the next index 2','E')
+            logger.warning('Can not move to the next index 2')
             return ret
             
-        self.Print('Moving table Done')
+        logger.info('Moving table Done')
         return ret
     
     def MoveTableIndex(self, timeout = 5):
         "moving the table one index from 24 stations"
-        self.Print('Moving table one index ...')  
+        logger.info('Moving table one index ...')  
         
         ret = self.ioc.CheckTableIsMoving()
         if ret:
-            self.Print('Table is moving or table error','E')
+            logger.warning('Table is moving or table error')
             return
         
         self.rbm.SetTableDriver('on')
@@ -352,7 +329,7 @@ class MainProgram:
             #time.sleep(0.2)
             ret = self.ioc.CheckTableIsMoving()
             if time.time() - t_start > timeout:
-                self.Print('MoveTableIndex - timeout 1')
+                logger.warning('MoveTableIndex - timeout 1')
                 break        
         
         # wait for the next index
@@ -362,28 +339,27 @@ class MainProgram:
             #time.sleep(0.2)
             ret = self.ioc.CheckTableReachedIndexPosition()
             if time.time() - t_start > timeout:
-                self.Print('MoveTableIndex - timeout 2')
+                logger.warning('MoveTableIndex - timeout 2')
                 break
         
         # stop table rotation
         self.rbm.SetTableDriver('off')        
         
-        #self.Print(f'MoveTableIndex : {ret}')
+        #logger.info(f'MoveTableIndex : {ret}')
         return ret 
-    
     
     def MoveTableIndexIfBetweenStations(self, timeout = 5):
         "moving the table when stuck between two stations - indicated by TableIsMoving"
-        self.Print('Moving table one index ...')  
+        logger.info('Moving table one index ...')  
         
         ret1   = self.ioc.CheckTableIsMoving()
         ret2   = self.rbm.CheckTableDriverOutputOn()
         ret    = ret1 and (not ret2)
         if not ret:
-            self.Print('Table is in correct position','I')
+            logger.info('Table is in correct position')
             return ret
         
-        self.Print('Table is in the middle - fixing the position','I')
+        logger.info('Table is in the middle - fixing the position')
         
         self.rbm.SetTableDriver('on')
         
@@ -394,7 +370,7 @@ class MainProgram:
             #time.sleep(0.2)
             ret = self.ioc.CheckTableIsMoving()
             if time.time() - t_start > timeout:
-                self.Print('MoveTableIndex - timeout 1')
+                logger.warning('MoveTableIndex - timeout 1')
                 break        
         
         # wait for the next index
@@ -404,18 +380,18 @@ class MainProgram:
             #time.sleep(0.2)
             ret = self.ioc.CheckTableReachedIndexPosition()
             if time.time() - t_start > timeout:
-                self.Print('MoveTableIndex - timeout 2')
+                logger.warning('MoveTableIndex - timeout 2')
                 break
         
         # stop table rotation
         self.rbm.SetTableDriver('off')        
         
-        #self.Print(f'MoveTableIndex : {ret}')
+        #logger.info(f'MoveTableIndex : {ret}')
         return ret     
     
     def MoveTableWithNextUUTforTest(self):
         "Find next UUT to load"
-        self.Print('Moving next UUT for test ...')
+        logger.info('Moving next UUT for test ...')
 
         # 11. Rotate the table
         ret        = self.MoveTableNextStation()       
@@ -427,50 +403,14 @@ class MainProgram:
     ## ------------------------------------     
     def MoveLinearCylinderBackward(self, timeout = 5):
         "moving the linear cylinder - axis 7 back"
-        self.Print('Moving cylinder back ...')  
-        
-        ret = self.ioc.LinearAxisBackwardPosition()
-        if ret:
-            self.Print('Cylinder in the back position','E')
-            return
-        
-        self.rbm.SetLinearCylinderBackward()     
-        
-        # wait for the cylinder
-        ret = self.ioc.LinearAxisBackwardPosition()
-        t_start = time.time()
-        while not ret:
-            #time.sleep(0.2)
-            ret = self.ioc.LinearAxisBackwardPosition()
-            if time.time() - t_start > timeout:
-                self.Print('Cylinder backward move - timeout ')
-                break
-        
-        self.Print('Moving cylinder - Done')  
+        logger.info('Moving cylinder back ...')   
+        ret = self.rbm.MoveLinearCylinderBackward(timeout = 15)
         return ret 
     
     def MoveLinearCylinderForward(self, timeout = 5):
         "moving the linear cylinder - axis 7 back"
-        self.Print('Moving cylinder forward ...')  
-        
-        ret = self.ioc.LinearAxisForwardPosition()
-        if ret:
-            self.Print('Cylinder in the forward position','E')
-            return
-        
-        self.rbm.SetLinearCylinderForward()     
-        
-        # wait for the cylinder
-        ret = self.ioc.LinearAxisForwardPosition()
-        t_start = time.time()
-        while not ret:
-            #time.sleep(0.2)
-            ret = self.ioc.LinearAxisForwardPosition()
-            if time.time() - t_start > timeout:
-                self.Print('Cylinder forward move - timeout ')
-                break
-        
-        self.Print('Moving cylinder - Done')  
+        logger.info('Moving cylinder forward ...')  
+        ret = self.rbm.MoveLinearCylinderForward(timeout = 15)
         return ret    
 
     ## -------------------------------
@@ -483,17 +423,17 @@ class MainProgram:
         next_state  = curr_state
         
         if msg_in.command == 1:
-            self.Print('1 - STOP command')
+            logger.info('1 - STOP command')
             self.error = ERROR.NONE
             next_state = STATE.STOP    
             
         if self.ioc.CheckEmergencyStop():
-            self.Print('Emergency stop is pressed')
+            logger.info('Emergency stop is pressed')
             self.error = ERROR.EMERGENCY_STOP
             next_state = STATE.STOP  
             
         if self.ioc.CheckAirSupply():
-            self.Print('No air supply')
+            logger.info('No air supply')
             self.error = ERROR.NO_AIR_SUPPLY
             next_state = STATE.STOP          
         
@@ -560,42 +500,42 @@ class MainProgram:
             pass
         
         elif msg_in.command == 1:      
-            self.Print('1 - Debug')
+            logger.info('1 - Debug')
             self.error = ERROR.NONE
             next_state = STATE.LOAD_UUT_TO_TABLE
         
         elif msg_in.command == 2:
-            self.Print('2 - Load UUT to index table command')
+            logger.info('2 - Load UUT to index table command')
             self.error = ERROR.NONE
             next_state = STATE.LOAD_UUT_TO_TABLE
             
         elif msg_in.command == 3:
-            self.Print('3 - Unload UUT from index table command')
+            logger.info('3 - Unload UUT from index table command')
             self.error = ERROR.NONE
             next_state = STATE.UNLOAD_UUT_FROM_TABLE    
             
         elif msg_in.command == 4:
-            self.Print('4 - Load UUT to test stand command')
+            logger.info('4 - Load UUT to test stand command')
             self.error = ERROR.NONE
             next_state = STATE.LOAD_UUT_TO_STAND               
             
         elif msg_in.command == 5:
-            self.Print('5 - Unload UUT from test stand command')          
+            logger.info('5 - Unload UUT from test stand command')          
             self.error = ERROR.NONE
             next_state = STATE.UNLOAD_UUT_FROM_STAND  
             
         elif msg_in.command == 6:
-            self.Print('6 - Get staus command')            
+            logger.info('6 - Get staus command')            
             self.error = ERROR.NONE
             next_state = STATE.GET_AND_SEND_STATUS   
             
         elif msg_in.command == 7:
-            self.Print('7 - Get bit results command')
+            logger.info('7 - Get bit results command')
             self.error = ERROR.NONE
             next_state = STATE.GET_AND_SEND_BIT_RESULTS               
           
         elif msg_in.command == 8:
-            self.Print('8 - Connections counter zeroise command')   
+            logger.info('8 - Connections counter zeroise command')   
             
         else:
             self.error = ERROR.BAD_HOST_COMMAND
@@ -637,7 +577,7 @@ class MainProgram:
         
         ret = self.ioc.CheckPartInLoadPosition()
         if ret:
-            self.Print('UUT in place')
+            logger.info('UUT in place')
             self.error = ERROR.NONE
             next_state = STATE.WAIT_TWO_BUTTON_PRESS              
         
@@ -650,12 +590,11 @@ class MainProgram:
         
         ret = self.ioc.CheckTwoButtonPush()
         if ret:
-            self.Print('Two button switch detected')
+            logger.info('Two button switch detected')
             self.error = ERROR.NONE
             next_state = STATE.NEXT_TABLE_INDE              
         
         return msg_out, next_state         
-        
     
     def StateUnLoadUUTFromTable(self, msg_in, curr_state):
         "unload uut from table - done"
@@ -665,7 +604,7 @@ class MainProgram:
         # check if UUT in place - state wait
         ret = self.ioc.CheckPartInLoadPosition()
         while ret: # while UUT inside
-            self.Print('Wait for human to unload - PLEASE UNLOAD UUT FROM TABLE')
+            logger.info('Wait for human to unload - PLEASE UNLOAD UUT FROM TABLE')
             ret = self.ioc.CheckPartInLoadPosition()
         
         # 2 switch rotate sensor - state wait
@@ -682,7 +621,6 @@ class MainProgram:
         
         return msg_out, next_state   
     
-    
     def StateLoadUUTToStand(self, msg_in, curr_state):
         "state uut load"
         ret         = True
@@ -692,7 +630,7 @@ class MainProgram:
 #        # check if UUT in place - state wait
 #        ret = self.MoveTableWithNextUUTforTest()
 #        if not ret:
-#            self.Print('UUT is not in front of the robot','E')
+#            logger.info('UUT is not in front of the robot','E')
 #            self.error = ERROR.UUT_NOT_IN_FRONT_ROBOT
 #            next_state = STATE.ERROR
 #            return msg_out, next_state            
@@ -700,7 +638,7 @@ class MainProgram:
         # 0. Check UUT in front of the Robot
         ret         = self.rbm.CheckTableUnloadPosition()  
         if not ret:
-            self.Print('UUT is not in front of the robot','E')
+            logger.info('UUT is not in front of the robot','E')
             self.error = ERROR.UUT_NOT_IN_FRONT_ROBOT
             next_state = STATE.ERROR   
             return msg_out, next_state  
@@ -708,28 +646,28 @@ class MainProgram:
 #        # 1. Check/move robot in the backward position
 #        ret         = self.MoveLinearCylinderBackward()
 #        if not ret:
-#            self.Print('Robot linear axis is not in backward position')
+#            logger.info('Robot linear axis is not in backward position')
 #            #self.error = ERROR.ROBOT_BACKWARD_POSITION
 #            next_state = STATE.ERROR 
 #            
 #        # 2. Check robot in the home position
 #        ret         = self.rbm.CheckHomePosition() and ret
 #        if not ret:
-#            self.Print('Robot is not in home position')
+#            logger.info('Robot is not in home position')
 #            self.error = ERROR.ROBOT_HOME_POSITION
 #            next_state = STATE.ERROR   
 #            
 #        # 3. Check robot gripper in open position
 #        ret         = self.rbm.CheckGripperOpen() and ret
 #        if not ret:
-#            self.Print('Gripper is not in open position')
+#            logger.info('Gripper is not in open position')
 #            self.error = ERROR.GRIPPER_OPEN_POSITION
 #            next_state = STATE.ERROR  
             
         # 6. LOAD UUT 
         ret        = self.rbm.PickUUTFromTable()      
         if not ret:
-            self.Print('Robot pick from table UUT failure')
+            logger.info('Robot pick from table UUT failure')
             self.error = ERROR.ROBOT_LOAD_UUT
             next_state = STATE.ERROR 
             return msg_out, next_state               
@@ -737,7 +675,7 @@ class MainProgram:
         # 7. open door
         ret         = self.ioc.OpenTestCellDoor() 
         if not ret:
-            self.Print('Tester open door timeout')
+            logger.info('Tester open door timeout')
             self.error = ERROR.TESTER_OPEN_DOOR
             next_state = STATE.ERROR 
             return msg_out, next_state              
@@ -746,14 +684,14 @@ class MainProgram:
 #        # 8. move robot forward
 #        ret        = self.MoveLinearCylinderForward()  and ret         
 #        if not ret:
-#            self.Print('Robot move forward timeout')
+#            logger.info('Robot move forward timeout')
 #            self.error = ERROR.ROBOT_MOVE_FORWARD
 #            next_state = STATE.ERROR 
             
         # 9. LOAD UUT 
         ret        = self.rbm.LoadUUTToTester()       
         if not ret:
-            self.Print('Robot load UUT failure')
+            logger.info('Robot load UUT failure')
             self.error = ERROR.ROBOT_LOAD_UUT
             next_state = STATE.ERROR  
             return msg_out, next_state              
@@ -761,7 +699,7 @@ class MainProgram:
         # 11. get zama out by robot
         ret        = self.rbm.PickTestConnector() 
         if not ret:
-            self.Print('Robot pick test connector')
+            logger.info('Robot pick test connector')
             self.error = ERROR.ROBOT_PICK_CONNECTOR
             next_state = STATE.ERROR 
             return msg_out, next_state              
@@ -769,7 +707,7 @@ class MainProgram:
         # 12. plug connector
         ret        = self.rbm.PlugTestConnectorInUUT() 
         if not ret:
-            self.Print('Robot plug test connector')
+            logger.info('Robot plug test connector')
             self.error = ERROR.ROBOT_PLUG_CONNECTOR
             next_state = STATE.ERROR 
             return msg_out, next_state              
@@ -778,7 +716,7 @@ class MainProgram:
         # 14. move robot home
         ret         = self.rbm.MoveRobotHomePosition() 
         if not ret:
-            self.Print('Robot is not in home position')
+            logger.info('Robot is not in home position')
             self.error = ERROR.ROBOT_HOME_POSITION
             next_state = STATE.ERROR   
             return msg_out, next_state              
@@ -786,7 +724,7 @@ class MainProgram:
 #        # 10. move backward
 #        ret         = self.MoveLinearCylinderBackward() and ret
 #        if not ret:
-#            self.Print('Robot linear axis is not in backward position')
+#            logger.info('Robot linear axis is not in backward position')
 #            self.error = ERROR.ROBOT_BACKWARD_POSITION
 #            next_state = STATE.ERROR  
              
@@ -794,14 +732,14 @@ class MainProgram:
         # 14. close door
         ret        = self.ioc.CloseTestCellDoor() 
         if not ret:
-            self.Print('Door is not closed')
+            logger.info('Door is not closed')
             self.error = ERROR.CLOSED_DOOR
             next_state = STATE.ERROR 
         
 #        # 15. Start test
 #        ret       = self.host.ReadyForTest() and ret
 #        if not ret:
-#            self.Print('Send message')
+#            logger.info('Send message')
 #            self.error = ERROR.COMM_FAILURE
 #            next_state = STATE.ERROR         
         
@@ -818,7 +756,7 @@ class MainProgram:
         # 0. Check UUT in front of the Robot : 0 - UUT in the place, 1 -good
         ret         = not self.rbm.CheckTableUnloadPosition()
         if not ret:
-            self.Print('Table has no place for  UUT')
+            logger.info('Table has no place for  UUT')
             self.error = ERROR.TABLE_NO_PLACE
             next_state = STATE.ERROR  
             return msg_out, next_state              
@@ -826,7 +764,7 @@ class MainProgram:
         # 2. Check robot in the home position
         ret         = self.rbm.MoveRobotHomePosition() 
         if not ret:
-            self.Print('Robot is not in home position')
+            logger.info('Robot is not in home position')
             self.error = ERROR.ROBOT_HOME_POSITION
             next_state = STATE.ERROR          
             return msg_out, next_state              
@@ -834,7 +772,7 @@ class MainProgram:
         # 3. open door
         ret         = self.ioc.OpenTestCellDoor() 
         if not ret:
-            self.Print('Tester open door timeout')
+            logger.info('Tester open door timeout')
             self.error = ERROR.TESTER_OPEN_DOOR
             next_state = STATE.ERROR     
             return msg_out, next_state              
@@ -842,7 +780,7 @@ class MainProgram:
         # 4. Check robot in the forwad position
 #        ret        = self.MoveLinearCylinderForward()  and ret         
 #        if not ret:
-#            self.Print('Robot move forward timeout')
+#            logger.info('Robot move forward timeout')
 #            self.error = ERROR.ROBOT_MOVE_FORWARD
 #            next_state = STATE.ERROR 
             
@@ -850,7 +788,7 @@ class MainProgram:
         # 4. unplug connector
         ret        = self.rbm.UnPlugTestConnectorInUUT()  
         if not ret:
-            self.Print('Robot unplug test connector')
+            logger.info('Robot unplug test connector')
             self.error = ERROR.ROBOT_PLUG_CONNECTOR
             next_state = STATE.ERROR  
             return msg_out, next_state              
@@ -858,7 +796,7 @@ class MainProgram:
         # 5. put connector back
         ret        = self.rbm.PutTestConnector() 
         if not ret:
-            self.Print('Robot put test connector')
+            logger.info('Robot put test connector')
             self.error = ERROR.ROBOT_PICK_CONNECTOR
             next_state = STATE.ERROR 
             return msg_out, next_state              
@@ -866,7 +804,7 @@ class MainProgram:
         # 6. take out uut
         ret        = self.rbm.GetUUTOut() 
         if not ret:
-            self.Print('Robot take out UUT')
+            logger.info('Robot take out UUT')
             self.error = ERROR.ROBOT_UNLOAD_UUT
             next_state = STATE.ERROR
             return msg_out, next_state              
@@ -874,7 +812,7 @@ class MainProgram:
         # 7. Check robot in the home position
         ret         = self.rbm.MoveRobotHomePosition()
         if not ret:
-            self.Print('Robot is not in home position')
+            logger.info('Robot is not in home position')
             self.error = ERROR.ROBOT_HOME_POSITION
             next_state = STATE.ERROR      
             return msg_out, next_state              
@@ -882,14 +820,14 @@ class MainProgram:
 #        # 8. Check axis in the backward position
 #        ret         = self.MoveLinearCylinderBackward() and ret
 #        if not ret:
-#            self.Print('Robot linear axis is not in backward position')
+#            logger.info('Robot linear axis is not in backward position')
 #            self.error = ERROR.ROBOT_BACKWARD_POSITION
 #            next_state = STATE.ERROR 
             
         # 9. close door
         ret        = self.ioc.CloseTestCellDoor()      
         if not ret:
-            self.Print('Close door problem')
+            logger.info('Close door problem')
             self.error = ERROR.CLOSE_DOOR
             next_state = STATE.ERROR 
             return msg_out, next_state              
@@ -897,7 +835,7 @@ class MainProgram:
         # 10. Put UUT  back
         ret        = self.rbm.PutUUTOnTable()      
         if not ret:
-            self.Print('Robot put on table UUT failure')
+            logger.info('Robot put on table UUT failure')
             self.error = ERROR.ROBOT_UNLOAD_UUT
             next_state = STATE.ERROR
             return msg_out, next_state              
@@ -905,14 +843,13 @@ class MainProgram:
         # 11. Rotate the table
         ret        = self.MoveTableNextStation()      
         if not ret:
-            self.Print('Rotate table failure')
+            logger.info('Rotate table failure')
             self.error = ERROR.ROBOT_UNLOAD_UUT
             next_state = STATE.ERROR            
 
         
         return msg_out, next_state
     
-
     def StateGetAndSendStatus(self, msg_in, curr_state):
         "check system status"
         ret         = False
@@ -935,7 +872,6 @@ class MainProgram:
         msg_out.general_status[9] = 10        
         
         return msg_out, next_state    
-
 
     def StateGetAndSendBitResults(self, msg_in, curr_state):
         "check bits"
@@ -979,14 +915,14 @@ class MainProgram:
         "do onthing"
         msg_out     = msg_in
         next_state  = curr_state
-        self.Print('Sate Finish')
+        logger.info('Sate Finish')
         return msg_out, next_state 
 
     def StateError(self, msg_in, curr_state):
         "do onthing"
         msg_out         = msg_in
         next_state      = curr_state
-        self.Print('ERROR STATE - DO SOMETHING')
+        logger.info('ERROR STATE - DO SOMETHING')
         return msg_out, next_state  
 
     def Transition(self, msg_in):
@@ -1039,10 +975,10 @@ class MainProgram:
             
         else:
             msg_out, next_state = msg_in, STATE.ERROR
-            self.Print('Not supprted state')
+            logger.info('Not supprted state')
             
         if curr_state != next_state:
-            self.Print('Transition from %s to %s' %(str(curr_state),str(next_state)))  
+            logger.info('Transition from %s to %s' %(str(curr_state),str(next_state)))  
             
         self.state = next_state
         return msg_out        
@@ -1051,6 +987,18 @@ class MainProgram:
     ## -------------------------------
     #  -- TASKS ---
     ## -------------------------------
+    def TaskStateLoadUUTToStand(self):
+        "moving to stand"
+        msg_in              = Message()
+        curr_state          = STATE.LOAD_UUT_TO_STAND
+        msg_out, next_state = self.StateLoadUUTToStand(msg_in, curr_state) 
+
+    def TaskStateUnloadUUTFromStand(self):
+        "moving to stand"
+        msg_in              = Message()
+        curr_state          = STATE.UNLOAD_UUT_FROM_STAND
+        msg_out, next_state = self.StateUnloadUUTFromStand(msg_in, curr_state)         
+
     def TaskTestStates(self, msg_in):
         "transition to a different state"
         curr_state = self.state
@@ -1102,10 +1050,10 @@ class MainProgram:
             msg_out, next_state = self.StateError(msg_in, curr_state)     
         else:
             msg_out, next_state = msg_in, STATE.ERROR
-            self.Print('Not supprted state')
+            logger.info('Not supprted state')
             
         if curr_state != next_state:
-            self.Print('Transition from %s to %s' %(str(curr_state),str(next_state)))  
+            logger.info('Transition from %s to %s' %(str(curr_state),str(next_state)))  
             
         self.state = next_state
         

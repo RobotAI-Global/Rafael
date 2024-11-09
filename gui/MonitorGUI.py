@@ -18,13 +18,12 @@ Install:
 -----------------------------
 
 """
-gui_version   = '0201'
+
 
 import os
 #import tkinter as tk
 #import threading
 #import json
-import logging as log
 import time   # just to measure switch time
 #import logging
 import webbrowser
@@ -84,8 +83,9 @@ style.use("dark_background")
 #try:
 from gui.ConfigManager import ConfigManager
 from gui.DisplayManager  import DisplayManager
-from robot.Robot import Robot as RobotManager
-from disc.ControllerIO import ControllerIO 
+from control.MainProgram import MainProgram
+# from robot.Robot import Robot as RobotManager
+# from disc.ControllerIO import ControllerIO 
 from gui.TkinkerJson  import JsonEditor
 from gui.PoseGUI import PoseGUI
 from gui.Logger import logger
@@ -111,17 +111,17 @@ from gui.Logger import logger
 #    return 0x10000 + n if n < 0 else n
 
 
-
+gui_version                   = '0201' # global variable gets overwritten by MainApp
 AXIS_VIEW_OPTIONS             = ["45-45","Left","Top"] #et
-SAFETY_MARGIN_Z               = 50  # mm
+# SAFETY_MARGIN_Z               = 50  # mm
 TX_STEP_SIZE                  = 0.0400 # metr
 SCAN_POINTS                   = [[-500,-200, 400, 94, 0, -82],[-500,0,400, 94, 0, -82],[-500,0,600, 94, 0, -82],[-500,-220,600, 94, 0, -82],[-665.01 ,-251.23 , 648.96 , 94, 0, -82]]
-HOME_POSE                     = [-500.0, 38.0, 430.0, 94.3088530785335, 0.6875493541569879, -82.21944360127314]
+# HOME_POSE                     = [-500.0, 38.0, 430.0, 94.3088530785335, 0.6875493541569879, -82.21944360127314]
         
-WORK_POINTS  = [[-0.520,-0.200, 0.400, -1.64,0, 1.7],   [-0.750,-0.200, 0.400, -1.64,0, 1.7],
-                [-0.500, 0,     0.400, -1.64,0, 1.7],   [-0.750, 0,     0.400, -1.64,0, 1.7],
-                [-0.500, 0,     0.600, -1.64,0, 1.7],   [-0.650, 0,     0.600, -1.64,0, 1.7],
-                [-0.500,-0.220, 0.600, -1.64,0, 1.7],   [-0.750,-0.220, 0.600, -1.64,0, 1.7]]
+# WORK_POINTS  = [[-0.520,-0.200, 0.400, -1.64,0, 1.7],   [-0.750,-0.200, 0.400, -1.64,0, 1.7],
+#                 [-0.500, 0,     0.400, -1.64,0, 1.7],   [-0.750, 0,     0.400, -1.64,0, 1.7],
+#                 [-0.500, 0,     0.600, -1.64,0, 1.7],   [-0.650, 0,     0.600, -1.64,0, 1.7],
+#                 [-0.500,-0.220, 0.600, -1.64,0, 1.7],   [-0.750,-0.220, 0.600, -1.64,0, 1.7]]
 
 
 #    cfg         = module_dict['cfg']
@@ -133,7 +133,7 @@ WORK_POINTS  = [[-0.520,-0.200, 0.400, -1.64,0, 1.7],   [-0.750,-0.200, 0.400, -
 
 class MonitorGUI:
 
-    def __init__(self, win, cfg = None):
+    def __init__(self, win, module_dict = None):
 
         self.win        = win
         self.cfg        = ConfigManager()
@@ -146,26 +146,27 @@ class MonitorGUI:
         #self.ip_robot  = "192.168.1.16"
         #self.port_robot = 5033
         #self.rbm        = None  # robot manager
-        self.rbm        = RobotManager(parent = self) #ip = self.ip_robot, port = self.port_robot) #RobotServerThread(host = self.ip, port = self.port,  debug=self.debugOn, config = self.cfg)
-        self.ioc        = ControllerIO(parent = self)
+        #self.rbm        = RobotManager(parent = self) #ip = self.ip_robot, port = self.port_robot) #RobotServerThread(host = self.ip, port = self.port,  debug=self.debugOn, config = self.cfg)
+        #self.ioc        = ControllerIO(parent = self)
+        self.prg        = MainProgram(parent = self)
         self.dsp        = DisplayManager(self.cfg)
 
-        self.robot_speed = 100  # some strnage numbers
-        self.robot_pose  = np.zeros((1,6))
+        #self.robot_speed = 100  # some strnage numbers
+        #self.robot_pose  = np.zeros((1,6))
         #self.home_pose   = np.array([-86.2, -225.6, 237.6, -177.0, 2.29, 138.6]) # chess
-        self.home_pose   = np.array(HOME_POSE)
+        #self.home_pose   = np.array(HOME_POSE)
         
-        # receive message
-        self.msgRecv   = {'Id': 0, 'Data' : 0}
+        # # receive message
+        # self.msgRecv   = {'Id': 0, 'Data' : 0}
         
-        # host
-        self.ip_vision         = '127.0.0.1'    
-        #self.ip_vision         = '192.168.1.130' # Uri comp
-        self.port_vision       = 5555
-        self.vis        = None #VisionManager(self.cfg)        
-        self.sim        = None #MonitorComm(cfg)        
-        self.sim_ts     = None  # simulator task handle
-        self.object_pose  = np.zeros((1,6))
+        # # host
+        # self.ip_vision         = '127.0.0.1'    
+        # #self.ip_vision         = '192.168.1.130' # Uri comp
+        # self.port_vision       = 5555
+        # self.vis            = None #VisionManager(self.cfg)        
+        # self.sim            = None #MonitorComm(cfg)        
+        # self.sim_ts         = None  # simulator task handle
+        # self.object_pose    = np.zeros((1,6))
         
 ##        # robot
 #        self.ip     = '192.168.0.10'
@@ -185,7 +186,7 @@ class MonitorGUI:
     # # -- TASK COMM ---
     # def commServer(self):
     #    # start
-    #    self.tprint('Waiting for Robot connection ...')
+    #    logger.info('Waiting for Robot connection ...')
        
     #    # maybe already running
     #    if self.com is None:
@@ -193,11 +194,11 @@ class MonitorGUI:
     #        self.com    = hostServerThread(host = self.ip, port = self.port,  debug=self.debugOn, config = self.cfg)
     #        self.com.start()
     #    elif self.com.is_alive():   
-    #        self.tprint('Server is alive')
+    #        logger.info('Server is alive')
        
     # def commClient(self):
     #    # start
-    #    self.tprint('Simulating Robot connection ...')
+    #    logger.info('Simulating Robot connection ...')
        
     #    # maybe already running
     #    if self.sim is None:
@@ -210,740 +211,9 @@ class MonitorGUI:
 
     # def commDisConnect(self):
     #    #
-    #    self.tprint('Trying to stop Robot connection ...')
+    #    logger.info('Trying to stop Robot connection ...')
     #    self.com.stop()
-    
-    ## -----------------------------    
-    # -- Session Control ---
-    ## -----------------------------    
-        
-    def getVersion(self):
-        # start
-        self.tprint('Reading version  ...')
-        
-        # maybe already running
-        self.tprint('App version : %s' %str(gui_version))
-        
-    def orderSelect(self):
-        "edit parameter file"
-        
-        self.cfg.CreatePickOrderFileJson()
-        fname = self.cfg.GetPickOrderFileName()
-        webbrowser.open(fname) 
-        self.tprint(fname)
 
-    def sessionSelect(self):
-        "edit session parameter file"
-         
-        self.cfg.CreateSessionFile()
-        fname = self.cfg.GetSessionFileName()
-        #webbrowser.open(fname)
-        JsonEditor(fname)
-        self.tprint(fname)         
-                
-        
-
-        
-
-    ## -----------------------------    
-    # -- Robot Control ---
-    ## -----------------------------    
-        
-    def robotConnect(self):
-        # start
-        self.tprint('Starting Robot connection ...')
-        
-        # maybe already running
-        if self.rbm is None:
-            # runs Robot server and Multi Object Detection
-            self.tprint('Bad Robot Init  ... Abort') 
-            return
-            #self.rbm    = RobotManager(ip = self.ip_robot, port = self.port_robot, block_com=False, config=self.cfg) #RobotServerThread(host = self.ip, port = self.port,  debug=self.debugOn, config = self.cfg)
-            #self.rbm.instanceSocket()
-            #self.rbm.start()
-        elif self.rbm.is_connected():   
-            self.tprint('Robot is alive')
-        else:
-            #self.rbm.RobotData()
-            self.tprint('Robot is connected')
-            
-        #self.rbm.setPowerOn()
-        #self.rbm.setReleaseBrake()
-
-    def robotStop(self):
-        # start
-        self.tprint('Stop Robot  ...')
-        
-        # maybe already running
-        if self.rbm is None or self.rbm.is_connected() is False:
-            self.tprint('Connect to the robot first ...')
-            return
-        
-        self.rbm.Stop()
-
-    def robotCommState(self):
-        # comm problems?
-        
-        comm_state = self.rbm.GetRobotStatus()
-        self.tprint("Robot status: %s" %str(comm_state))
-
-    def robotStatus(self):
-        # start
-        self.tprint('Getting Robot status ...')
-
-        # maybe already running
-        if self.rbm is None or self.rbm.is_connected() is False:
-            self.tprint('Connect to the robot first ...')
-            return
-        
-        stat = self.rbm.GetRobotStatus()
-        self.tprint(str(stat))
-
-
-    def robotDisConnect(self):
-        # start
-        self.tprint('Disconnect from Robot ...')
-        
-        # maybe already running
-        if self.rbm is None:
-            # runs 
-            pass
-        elif self.rbm.Connected():  
-            self.rbm.Stop()
-            self.rbm.RobotPower('off')            
-            #self.rbm.stop()
-        else:
-            self.rbm.RobotPower('off')
-
-        self.tprint('Robot is stopped')  
-        
-    def robotSetRobotSpeed(self):
-        # set speed 1-100
-        speedVal = np.maximum(10,np.minimum(200,self.sliderCount))        
-        self.robot_speed = speedVal
-        
-        self.tprint('Robot speed set : %s' %str(speedVal)) 
-        
-    def robotGetGripperPose(self):
-        # read pose
-        self.tprint('Robot read pose ... ') 
-        
-        # maybe already running
-        if self.rbm is None or self.rbm.Connected() is False:
-            self.tprint('Connect to the robot first ...')
-            return [0]*6
-        
-        res = self.rbm.GetPosition() #getTool_xyzrxryrz()
-        robotPose = res[1]
-        
-        robotPose[0] = robotPose[0] * 1000
-        robotPose[1] = robotPose[1] * 1000
-        robotPose[2] = robotPose[2] * 1000
-        self.tprint('Robot pose is (rad): %s' %str(robotPose))
-        robotPose[3] = np.rad2deg(robotPose[3])
-        robotPose[4] = np.rad2deg(robotPose[4])
-        robotPose[5] = np.rad2deg(robotPose[5])
-        self.tprint('Robot pose is : %s' %str(robotPose))
-
-        self.robot_pose = robotPose
-        return robotPose
-    
-    def robotSetGripperPose(self):
-        # set pose
-        self.tprint('Robot set pose GUI ... ') 
-        
-        robotPose = self.robotGetGripperPose()
-        poseGui   = PoseGUI(robotPose)
-        robotPose = poseGui.pose
-   
-        self.tprint('Robot pose from user input : %s' %str(robotPose))
-
-        self.robotAbsoluteMovePose(robotPose)
-
-        return robotPose
-       
-        
-    def robotMarkWorkPosition(self):
-        # read pose
-        self.tprint('Robot shows work area ... ') 
-
-        
-        val = 0
-        for robotPose in WORK_POINTS:
-            print(f"Перемещение к: {robotPose}")
-            self.rbm.setmovel(robotPose)
-            time.sleep(0.5)
-            self.rbm.setDO(1,val)
-            print('Robot gripper command %d ... ' %val) 
-            val = 1 - val
-
-    def robotGoHome(self):
-        # read pose
-        self.tprint('Robot home pose ... ') 
-               
-        # res = self.rbm.getmovel() #getTool_xyzrxryrz()
-        # isOk, robotPose, msg = res
-        # if not isOk:
-        #     return
-
-        robotPose = self.home_pose #[-0.689, -0.121, 1.035, -2.0, 0.0, 2.0]
-        self.robotAbsoluteMovePose(robotPose)
-
-    def robotSetHomePose(self):
-        # setting home pose
-        self.tprint('Robot set current pose to be home pose ... ') 
-        
-        robotPose = self.robotGetGripperPose()        
-        self.home_pose[0] = robotPose[0]
-        self.home_pose[1] = robotPose[1]
-        self.home_pose[2] = robotPose[2]
-
-    def robotGripperOnOff(self,val = 1):
-        # set gripper
-        if val < 0.5:
-            self.rbm.SetGripper('close')
-        else:
-            self.rbm.SetGripper('open')
-            
-        self.tprint('Robot gripper command %d.' %(val)) 
-        
-    def robotDiffMovePose(self, dPose = np.zeros((1,6))):
-        # read pose
-        # maybe already running
-        if self.rbm is None or self.rbm.is_connected() is False:
-            self.tprint('Connect to the robot first ...')
-            return
-
-        self.tprint('Robot read pose and move ... ')         
-        
-        res = self.rbm.getmovel() #getTool_xyzrxryrz()
-        isOk, robotPose, msg = res
-        self.tprint('Robot pose is : %s' %str(np.round(robotPose,2)))
-        if not isOk:
-            self.tprint('Can not read position')
-            return
-        
-        # dPose[0] = dPose[0] / 1000
-        # dPose[1] = dPose[1] / 1000
-        # dPose[2] = dPose[2] / 1000
-        # dPose[3] = np.deg2rad(dPose[3])
-        # dPose[4] = np.deg2rad(dPose[4])
-        # dPose[5] = np.deg2rad(dPose[5])
-
-        robotPose[0] = robotPose[0] + dPose[0]
-        robotPose[1] = robotPose[1] + dPose[1]
-        robotPose[2] = robotPose[2] + dPose[2]
-        robotPose[3] = robotPose[3] + dPose[3]
-        robotPose[4] = robotPose[4] + dPose[4]
-        robotPose[5] = robotPose[5] + dPose[5]
-        
-        self.tprint('Going to Robot pose %s ' %str(robotPose))
-        self.rbm.setmovel(robotPose, num1 = str(self.robot_speed), num2= str(self.robot_speed), num3= str(self.robot_speed))
-        
-    def robotAbsoluteMovePose(self, dPose = [0]*6):
-        # move to euler pose
-
-        #self.tprint('Robot read pose and move ... ') 
-        self.tprint('Going to Robot pose [mm, deg] %s ' %str(np.round(dPose,2)))
-
-        robotPose    = dPose.copy() #np.array(dPose).copy()
-        
-#        robotPose[0] = dPose[0] / 1000
-#        robotPose[1] = dPose[1] / 1000
-#        robotPose[2] = dPose[2] / 1000
-#        robotPose[3] = np.deg2rad(dPose[3])
-#        robotPose[4] = np.deg2rad(dPose[4])
-#        robotPose[5] = np.deg2rad(dPose[5])
-
-        
-        #self.tprint('Going to Robot pose [m,rad]%s ' %str(robotPose))
-        self.rbm.set_pose_euler(robotPose)
-        return 
-    
-    
-    
-    ## ------------------------------------  
-    # -- Host Control ---
-    ## ------------------------------------ 
-
-    def hostStartPose6D(self):
-        # start
-        self.tprint('Start host ...')
-        
-        cwd = os.getcwd()
-        os.chdir(r'..\..\Pose6D')
-        os.startfile("..\..\Pose6D\Pose6D-1915.exe")
-        os.chdir(cwd)
-
-    def hostConnect(self):
-        # start
-        self.tprint('Starting host connection ...')
-        
-        # maybe already running
-        if self.vis is None:
-            #print(self.vis)
-            # runs Robot server and Multi Object Detection
-            self.vis    = HostManager(host = self.ip_vision, port = self.port_vision, debug = self.debugOn, config=self.cfg) #RobotServerThread(host = self.ip, port = self.port,  debug=self.debugOn, config = self.cfg)
-            self.vis.start()
-        elif self.vis.isAlive():   
-            self.tprint('Pose6D Connection is alive')
-        else:
-            #self.vis.start()
-            self.tprint('Vision Connection is restarted')
-            
-    def hostStop(self):
-        # stop
-        self.tprint('Stop host  ...')
-        self.vis.stop()
-            
-    def hostStatus(self):
-        # start
-        self.tprint('Getting host status ...')
-
-    def hostSendRecv(self, objId=1,objNum=1,robotPose=np.zeros((1,6)),objQ=1, msgId=1):
-        # send receive info
-        # use msgId for stereo messages
-        
-        self.tprint('Client sending request to host ...')  
-        #self.vis.setRobotData(objId,objNum,robotPose,objQ)
-        self.vis.setObjectData(objId,robotPose,objQ,msgId)
-        
-        time.sleep(0.1)    
-        #objId,objNum,objPose,objQ = self.vis.getObjectData()  
-        objId,objPose,objQ = self.vis.getObjectData() 
-        if objId is None:
-            self.tprint('Client Rx problem')
-        else:            
-            self.tprint('Client Receives  : %s,%s,%s,%s' %(str(objId),str(objNum),str(np.round(objPose.ravel(),2)),str(objQ)))
-        
-        return objId,objNum,objPose.flatten(),objQ
-    
-    def hostDetectObject(self, robotPose = []):
-        # detect tool
-        self.tprint('Detecting object pose ...')
-        if not self.vis.isAlive():
-            self.tprint('Vision task is not alive','W')
-            return
-        
-        if len(robotPose) < 1:
-            robotPose = self.robot_pose
-
-        self.tprint('Robot pose is : %s' %str(robotPose))
-        
-        # simple protocol
-        robId,robNum,robPose,robQ = 1,1, np.array(robotPose),1
-        objId,objNum,objPose,objQ = self.hostSendRecv(robId,robNum,robPose,robQ)
-        
-        # use object list internally
-        #self.dsp.UpdateObject(None, obj_name = '1', obj_num = 1, obj_pose = objPose )
-
-        if objQ < 0.7:
-            self.tprint('Object quality is low : %s' %str(objQ))
-            objPose = robPose
-
-        objPose          = np.round(objPose,decimals=3).astype(float)
-        self.object_pose = objPose
-        self.tprint('Object pose is : %s' %str(objPose))
-        return objPose
-    
-
-    def hostDetectTool(self):
-        # detect tool
-        self.tprint('Detect tool ...')
-        if not self.vis.isAlive():
-            return
-        
-        robId,robNum,robPose,robQ = 'tool',1, np.array([0,0,0,0,0,0]),1
-        objId,objNum,objPose,objQ = self.hostSendRecv(robId,robNum,robPose,robQ)
-        
-        # use object list internally
-        self.dsp.UpdateObject(None, obj_name = 'tool', obj_num = 1, obj_pose = objPose )
-        
-
-    def hostDetectScrew(self):
-        # start
-        self.tprint('Detect screws ...')
-        if not self.vis.isAlive():
-            return
-        
-        robId,robNum,robPose,robQ = 'screw',self.sliderCount, np.array([0,0,0,0,0,0]),1
-        objId,objNum,objPose,objQ = self.hostSendRecv(robId,robNum,robPose,robQ)        
-
-        self.tprint('Vision is stopped')   
-        
-    def hostSimServerTask(self, k=0):
-        # Update info about the objects 
-        self.tprint('Simulator thread is running') 
-        self.time_start = time.time()
-        time_period     = 20
-        while not self.sim.stopped:
-            # Read temperature
-            time_now    = time.time() - self.time_start
-            x_pos       = np.cos(2*np.pi*time_now/time_period)*200 + 500
-            y_pos       = np.sin(2*np.pi*time_now/time_period)*200 + 500
-
-            # server receives
-            robId,robNum,robPose,robQ =  self.sim.getRobotData()
-            if robId is not None:
-                self.tprint('Server Receives  : %s,%s,%s,%s' %(str(robId),str(robNum),str(np.round(robPose.ravel(),2)),str(robQ)))
-
-            time.sleep(0.01)
-
-            # server response
-            if robId is not None:
-                robPose[0], robPose[1] = x_pos, y_pos
-                objId, objNum, objPose, objQ   = robId, robNum, robPose, 0.95 
-                self.tprint('Server Sending   : %s,%s,%s,%s' %(str(objId),str(objNum),str(np.round(objPose.ravel(),2)),str(objQ)))                 
-                self.sim.setObjectData(objId, objNum, objPose, objQ)
-            
-            time.sleep(0.01)
-
-            
-        self.tprint('Simulator thread is stopped')         
-        
-    def hostSimServer(self):
-        # start
-        self.tprint('Simulating host connection ...')
-        
-        # maybe already running
-        if self.sim is None:
-            # runs Robot server and Multi Object Detection
-            self.sim    = hostSimulator(host = self.ip_vision, port = self.port_vision,  debug=self.debugOn)
-        #elif  not self.com.isAlive():      
-        self.sim.start() 
-        
-        # run the task to create data
-        self.btnAcquireStatus = True
-        
-        self.sim_ts = Thread(target=self.hostSimServerTask)
-        self.sim_ts.start()  
-        
-        
-    def hostDetectLeaf(self):
-        # start
-        self.tprint('Detect Leafs ...')
-
-    def hostDetectGrape(self):
-        # start
-        self.tprint('Detect Leafs ...')
-
-    def hostDisConnect(self):
-        # start
-        self.tprint('Disconnect from host ...')
-        
-        if self.sim is not None:  
-            self.sim.stop()       
-            
-        # maybe already running
-        if self.vis is not None:
-            self.vis.stop()
-            self.tprint('Stopping host thread...')        
-        
-    ## ------------------------------------  
-    # -- IO Control ---
-    ## ------------------------------------ 
-    def ioConnect(self):
-        # start
-        self.tprint('Starting IO connection ...')
-        
-        # maybe already running
-        if self.ioc is None:
-            # runs Robot server and Multi Object Detection
-            self.ioc    = ControllerIO(self) #host = self.ip_vision, port = self.port_vision, debug = self.debugOn, config=self.cfg) #RobotServerThread(host = self.ip, port = self.port,  debug=self.debugOn, config = self.cfg)
-            self.ioc.ConnectToController()
-        elif self.ioc.IsConnected():   
-            self.tprint('IO Connection is alive')
-        else:
-            # need to connect
-            self.ioc.ConnectToController()
-            self.tprint('IO Connection is initiated')
-            
-    def ioStatus(self):
-        self.ioc.GetInputStatus()
-        self.tprint(f'Checking status')
-        
-    def ioReset(self):
-        # get specific bit info
-        addr = 0
-        self.ioc.ResetOutput(addr)
-        self.tprint(f'IO reset {addr}') 
-        
-    def ioGetInfo(self):
-        # get specific bit info
-        val = self.ioc.GetInputStatus(0)
-        self.tprint(f'IO received {val}')
-        
-    def ioSetInfo(self):
-        # get specific bit info  
-        addr = 0
-        val = 1
-        self.ioc.SetOutput(addr,val)
-        self.tprint(f'IO sending value {val} to {addr}')
-        
-    def ioCheckTwoButtonPush(self):
-        "two buttons on the table are pressed"
-        ret = self.ioc.CheckTwoButtonPush()
-        self.tprint(f'Check button pressed : {ret}')
-        
-    def ioDisconnect(self):
-        # disonnecteing
-        self.ioc.CloseConnectionWithController()        
-       
-    ## ------------------------------------  
-    # -- Task --      
-    ## ------------------------------------ 
-        
-    def robotMultiPointMotion(self):
-        # check multi point motion as deefined by China
-        self.tprint('Starting point motion ...')
-
-#        val = 1
-#        pointNum  = len(SCAN_POINTS)
-#        for k in range(pointNum):
-#
-#            #self.robotCommState()
-#            robotPose = SCAN_POINTS[k].copy()
-#
-#            self.tprint('Moving....')
-#            self.robotAbsoluteMovePose(robotPose)
-#            time.sleep(0.1)
-#
-#            self.tprint('Gripper on-off')
-#            self.robotGripperOnOff(val)
-#            val = 1 - val
-#
-#            self.tprint('Finishing scan point %d from %d' %(k+1,pointNum))
-        
-        self.rbm.MovePathPoints()
-            
-
-        self.tprint('Robot finished the scan.')
-
-
-    def robotDetectAndMoveToPoint(self):
-        # start
-        #self.tprint('Client sending request to robot. Go Home Pose ...')
-        #self.robotAbsoluteMovePose([-356,-654,285,-90,0,140])
-
-        self.tprint('Client sending request to robot ...') 
-        robotPose = self.robotGetGripperPose()
-
-        #self.tprint('Client sending request to host ...') 
-        objId, objNum, objPose, objQ = self.hostSendRecv(robotPose=robotPose)
-        self.tprint('Received Object pose [mm,deg] %s ' %str(np.round(objPose,2)))
-        if objQ < 0.7:
-            self.tprint('Object is not detected. Not moving.')
-            return
-
-        self.tprint('Client sending Command to the Robot Move Linear ...')
-        #objPose[0] = objPose[0] + SAFETY_MARGIN_Z # actually X
-        self.robotAbsoluteMovePose([objPose[0],objPose[1],objPose[2],robotPose[3],robotPose[4],robotPose[5]])
-        # self.robotAbsoluteMovePose([-400,-700,robotPose[2],robotPose[3],robotPose[4],robotPose[5]])
-
-        self.tprint('Robot is at object pose - check.')
-
-    def robotScanDetectMove(self):
-        # scan multiple position detect and move to the points
-        self.tprint('Starting scan %s times...' %str(self.sliderCount))
-
-        pointNum  = len(SCAN_POINTS)
-        for repeatNum in range(self.sliderCount):
-            self.tprint('Repeat %s ...' %str(repeatNum))
-            for k in range(pointNum):
-
-                self.tprint('Going to point %d ....' %(k+1))
-                self.robotAbsoluteMovePose(SCAN_POINTS[k])
-                #time.sleep(15)
-
-                self.tprint('Touch....')
-                self.robotDetectAndMoveToPoint()
-                #time.sleep(10)
-
-                self.tprint('Going from point %d ....' %(k+1))
-                self.robotAbsoluteMovePose(SCAN_POINTS[k])
-                #time.sleep(10)
-                self.tprint('Finishing scan point %d from %d' %(k+1,pointNum))
-            
-
-        self.tprint('Robot finished the scan.')
-
-    def robotDetectMoveAndRepeat(self):
-        # touches the point several times
-        SMALL_DIFF_POSE    = [[ 0,  0, 0, 0 ,0, 0],
-                              [ 0, -50, 0, 0, 0, 0],
-                              [ 50,-50, 0, 0, 0, 0],                              
-                              [ 50,  0, 0, 0, 0, 0]]
-        pointNum = len(SMALL_DIFF_POSE)
-        self.tprint('Repeating %d times ...' %pointNum) 
-        robotPose = self.robotGetGripperPose()
-
-        for k in range(pointNum):
-            self.tprint('Client sending request to robot ...') 
-            robotPoseTemp = robotPose.copy()
-            robotPoseDiff = SMALL_DIFF_POSE[k]
-            robotPoseTemp[0] += robotPoseDiff[0]
-            robotPoseTemp[1] += robotPoseDiff[1]
-            self.robotAbsoluteMovePose(robotPoseTemp)
-            time.sleep(0.5)
-
-            #self.tprint('Client sending request to host ...') 
-            objId, objNum, objPose, objQ = self.hostSendRecv(robotPose=robotPoseTemp)
-            self.tprint('Received Object pose [mm,deg] %s ' %str(np.round(objPose,2)))
-            if objQ < 0.7:
-                self.tprint('Object is not detected. Not moving.')
-                break
-
-            self.tprint('Client sending Command to the Robot Move Linear ...')
-            #objPose[0] = objPose[0] + SAFETY_MARGIN_Z # actually X
-            self.robotAbsoluteMovePose([objPose[0],objPose[1],objPose[2],robotPose[3],robotPose[4],robotPose[5]])
-            # self.robotAbsoluteMovePose([-400,-700,robotPose[2],robotPose[3],robotPose[4],robotPose[5]])
-
-            self.tprint('Robot is at object pose - check.') 
-
-        self.robotAbsoluteMovePose(robotPose)       
-
-    def taskStereoMoveToPoint(self):
-        # takes several positions and compute stereo
-        STEREO_DIFF_POSE   = [[ 0,   0, 0, 0 ,0,0],
-                              [ 0,-50, 0, 0, 0,-5],
-                              [ 0, 50, 0, 0, 0, 5]]
-
-        self.tprint('Get current robot pose ...') 
-        robotPose = self.robotGetGripperPose()
-        
-        self.tprint('Init stereo...')
-        objId, objNum, objPose, objQ = self.hostSendRecv(robotPose=robotPose, msgId= 11)
-        
-        pointNum  = len(STEREO_DIFF_POSE)
-        for k in range(pointNum):
-            
-            robotPoseTemp = robotPose.copy()
-            robotPoseDiff = STEREO_DIFF_POSE[k]
-            robotPoseTemp[1] += robotPoseDiff[1]
-            robotPoseTemp[5] += robotPoseDiff[5]
-            #robotPoseTemp  = [robotPose[k] += STEREO_DIFF_POSE[k] for k in range(6)]
-
-            self.tprint('Going to point %d ....' %(k+1))
-            self.robotAbsoluteMovePose(robotPoseTemp) 
-            time.sleep(0.5)
-
-            self.tprint('Client sending request to stereo host view %d...' %(k+1)) 
-            objId, objNum, objPose, objQ = self.hostSendRecv(robotPose=robotPoseTemp, msgId= 13)
-            if objQ < 0.7:
-                self.tprint('Object is not detected. Not moving.')
-                continue
-            
-        # return robot to the initial pose
-        self.robotAbsoluteMovePose(robotPose) 
-            
-        self.tprint('Client sending request to stereo host. Triangulating...') 
-        objId, objNum, objPose, objQ = self.hostSendRecv(robotPose=robotPose, msgId= 17)
-        self.tprint('Received Object pose [mm,deg] %s ' %str(np.round(objPose,2)))
-        if objQ < 0.7:
-            self.tprint('Object is not detected. Not moving.')
-            return            
-
-        time.sleep(0.5)
-        self.tprint('Client sending Command to the Robot Move Linear ...')
-        #objPose[0] = objPose[0] + 300 #SAFETY_MARGIN_Z # actually X
-        self.robotAbsoluteMovePose([objPose[0],objPose[1],objPose[2],robotPose[3],robotPose[4],robotPose[5]])
-        # self.robotAbsoluteMovePose([-400,-700,robotPose[2],robotPose[3],robotPose[4],robotPose[5]])
-        self.tprint('Robot is at object pose - check.')
-           
-
-    # show on the gui
-    def showAllHangers(self):
-        # read all the nagers and show them
-        self.dsp.ClearScene()
-
-#        self.getHangerNumber()
-#        hangerNum           = self.msgRecv['Data']
-#        self.tprint('Reading %d hanger poses...' %int(hangerNum))
-#        v1                  = np.array([-100.0,  1000.0,   30.0,   0.0, 0.0, -0.0 ]).reshape(1,6)
-#        extrinsics_obj      = np.vstack((v1))    
-#        hanger_list          = self.dsp.GetHangerParams(extrinsics_obj)
-#
-#        for k in range(hangerNum):
-#            
-#            self.sliderCount = k+1
-#            self.getHangerPose()
-#           
-#            # update the pose - only X values
-#            hangerPose                         = self.msgRecv['Data']
-#            hanger_list[0].extrinsics[1]       = hangerPose[1] 
-#                
-#            hanger_list = self.dsp.DrawObjects(self.ax, hanger_list)
-#                    
-#            self.fig.canvas.draw()
-#            self.fig.canvas.flush_events()
-#
-#        self.tprint('Reading is done...')    
-    
-    ## -----------------------------
-    # -- Display Control ---
-    ## -----------------------------
-    
-    def renderScene(self):
-        # creates new scene 
-        self.dsp.TestInitShowCameraTableTool(self.ax, self.fig)
-        self.tprint('Robot new scene rendering : %s' %str('A')) 
-        
-    def renderSceneMotion(self):
-        # creates new scene 
-        self.dsp.TestInitShowCameraTableTool(self.ax, self.fig)
-        self.tprint('Motion is started : %s' %str('A')) 
-        
-    def renderSceneWithGrapes(self):
-        # creates new scene 
-        self.dsp.TestInitShowCameraGripperPoints(self.ax, self.fig)
-        self.tprint('Grape scene : %s' %str('A'))         
-        
-                             
-        
-
-    ## -----------------------------            
-    # -- Help  ---
-    ## -----------------------------
-        
-    def helpSystemStatus(self):
-        # start
-        self.tprint('System status  ...')        
-        
-    def helpUserManual(self):
-        # start
-        self.tprint('For User Manual - conatct RobotAI  ...')
-
-
-
-    # -- Service ---        
-    
-    def debugOnOff(self):
-        # switch debug
-        self.debugOn        = not self.debugOn
-        self.com.debugOn    = self.debugOn
-        self.tprint('Debug switch : %d' %self.debugOn)          
-
-
-
-    def finish(self):
-        # stop tasks
-        self.btnAcquireStatus = False
-        
-        #self.hostDisConnect()
-                       
-        self.tprint('Done')
-        self.mainQuit()
-        #self.win.destroy()
-        #self.win.quit()  
-        #sys.exit(1)
-        
-    def mainQuit(self):
-        # correct way to close
-        #breakpoint()
-        self.win.quit()     # stops mainloop
-        self.win.destroy()  # this is necessary on Windows to prevent
-                            # Fatal Python Error: PyEval_RestoreThread: NULL tstate        
-    
     # -------------------------
     def setupMenu(self):
         # add menu
@@ -952,23 +222,41 @@ class MonitorGUI:
 
         # ---------------------------------------
         # Session
-        boardmenu = tk.Menu(menu,tearoff = 0 )
-        menu.add_cascade(label='Setup',  menu=boardmenu)
-#        boardmenu.add_command(label='Connect...',               command= self.commServer)
-        boardmenu.add_command(label='Status...',                command= self.hostStatus)
-        boardmenu.add_command(label='Info...',                  command= self.getVersion)
-        #boardmenu.add_separator()
-        #boardmenu.add_command(label='Disconnect...',            command= self.commDisConnect)
-        boardmenu.add_separator()
-        boardmenu.add_command(label='Edit Session...',          command= self.sessionSelect)
+        sessionmenu = tk.Menu(menu,tearoff = 0 )
+        menu.add_cascade(label='Session',  menu=sessionmenu)
+        sessionmenu.add_command(label='Start...',                 command= self.sessStart)
+        #sessionmenu.add_command(label='Status...',                command= self.hostStatus)
+        sessionmenu.add_command(label='Info...',                  command=self.getVersion)
+        #sessionmenu.add_separator()
+        #sessionmenu.add_command(label='Disconnect...',            command= self.commDisConnect)
+        sessionmenu.add_separator()
+        sessionmenu.add_command(label='Edit Session...',          command=self.sessionSelect)
+        sessionmenu.add_separator()
+        sessionmenu.add_command(label='Exit',                   command=self.mainQuit)        
 
-        # ---------------------------------------
-        # Main Control
-        ordermenu = tk.Menu(menu,tearoff = 0 )
-        menu.add_cascade(label='Control',  menu=ordermenu)
-        ordermenu.add_command(label='Connect...',                command=self.orderSelect)
-        ordermenu.add_separator()
-        ordermenu.add_command(label='Select order',              command=self.orderSelect)
+# ---------------------------------------- 
+        # IO
+        iomenu = tk.Menu(menu,tearoff = 0 )
+        menu.add_cascade(label='IO',  menu=iomenu)
+      
+        iomenu.add_command(label='Connect...',                   command=self.ioConnect)
+        iomenu.add_command(label='Status...',                    command=self.ioStatus)
+        iomenu.add_command(label='Default...',                   command=self.ioHome)
+        iomenu.add_command(label='Reset...',                     command=self.ioReset)
+        iomenu.add_command(label='Disconnect...',                command=self.ioDisconnect)
+        
+        iomenu.add_separator()
+        iomenu.add_command(label='Get Info',                     command=self.ioGetInfo)  
+        iomenu.add_command(label='Set Value',                    command=self.ioSetInfo)   
+        
+
+        iomenu.add_separator()
+        iomenu.add_command(label='Table Info',                   command=self.ioGetInfo)  
+        iomenu.add_command(label='Move Table Next Index',        command=self.prg.MoveTableIndex)  
+        iomenu.add_command(label='Move Table Next Station',      command=self.prg.MoveTableNextStation)           
+        iomenu.add_command(label='Move Table Home',              command=self.prg.MoveTableHome) 
+        iomenu.add_command(label='Check 2 Button Push ',         command=self.prg.ioc.CheckTwoButtonPush) 
+        
 
         # ---------------------------------------
         # Robot commands
@@ -991,7 +279,12 @@ class MonitorGUI:
         testmenu.add_command(label='Gripper On/Off',              command=self.robotGripperOnOff)      
         testmenu.add_command(label='Show Work Position',          command=self.robotMarkWorkPosition)
         testmenu.add_command(label='Command And Go',              command=self.robotDetectAndMoveToPoint)
-        testmenu.add_command(label='Execute Pick',                 command=self.robotDetectAndMoveToPoint)
+        testmenu.add_command(label='Execute Pick',                command=self.robotDetectAndMoveToPoint)
+
+        testmenu.add_separator()
+        testmenu.add_command(label='Move Linear Forward',         command=self.prg.MoveLinearCylinderForward)
+        testmenu.add_command(label='Move Linear Backward',        command=self.prg.MoveLinearCylinderBackward)
+        
 
         testmenu.add_separator()
         testmenu.add_cascade(label='Diff move...',              menu = configmenu)             
@@ -1010,48 +303,32 @@ class MonitorGUI:
         #testmenu.add_separator()
         #testmenu.add_command(label='Simulator...',               command= lambda: self.commClient())
 
+
         # ---------------------------------------
         # Host Control
-        pose6dmenu = tk.Menu(menu,tearoff = 0 )
-        menu.add_cascade(label='Host',  menu=pose6dmenu)
+        hostmenu = tk.Menu(menu,tearoff = 0 )
+        menu.add_cascade(label='Host',  menu=hostmenu)
       
-        pose6dmenu.add_command(label='Connect...',                command=self.hostConnect)
-        pose6dmenu.add_command(label='Status...',                 command= self.robotStatus, state="disabled")
-        pose6dmenu.add_command(label='Stop...',                    command= self.robotStop, state="disabled")
-        pose6dmenu.add_command(label='Disconnect...',              command=self.hostDisConnect)
-        
-        pose6dmenu.add_separator()
-        pose6dmenu.add_command(label='Send Info',                 command=self.hostDetectObject)  
-        pose6dmenu.add_command(label='Send Status',               command=self.hostDetectLeaf, state="disabled")        
-    
-        # ---------------------------------------- 
-        # IO
-        iomenu = tk.Menu(menu,tearoff = 0 )
-        menu.add_cascade(label='IO',  menu=iomenu)
-      
-        iomenu.add_command(label='Connect...',                   command=self.ioConnect)
-        iomenu.add_command(label='Status...',                    command= self.ioStatus)
-        iomenu.add_command(label='Rest...',                      command= self.ioReset)
-        iomenu.add_command(label='Disconnect...',                command=self.ioDisconnect)
-        
-        iomenu.add_separator()
-        iomenu.add_command(label='Get Info',                     command=self.ioGetInfo)  
-        iomenu.add_command(label='Set Value',                    command=self.ioSetInfo)   
-        iomenu.add_command(label='Get Push Button',              command=self.ioCheckTwoButtonPush) 
-        
-        
+        hostmenu.add_command(label='Connect...',                command=self.hostConnect)
+        hostmenu.add_command(label='Status...',                 command= self.robotStatus, state="disabled")
+        hostmenu.add_command(label='Stop...',                    command= self.robotStop, state="disabled")
+        hostmenu.add_separator()
+        hostmenu.add_command(label='Send Info',                 command=self.hostDetectObject)          
+        hostmenu.add_separator()
+        hostmenu.add_command(label='Disconnect...',              command=self.hostDisConnect)
 
         # ----------------------------------------
         # Task commands
         taskmenu = tk.Menu(menu,tearoff = 0 )
         menu.add_cascade(label='Tasks',  menu=taskmenu)
         taskmenu.add_command(label='Test Multi Point Motion',      command=self.robotMultiPointMotion)
-        taskmenu.add_command(label='Detect Object and Move',       command=self.robotDetectAndMoveToPoint)
         taskmenu.add_command(label='Scan, Detect and Move',        command=self.robotScanDetectMove) 
         taskmenu.add_separator() 
-        taskmenu.add_command(label='Detect, Move and Repeat',       command=self.robotDetectMoveAndRepeat)  
+        taskmenu.add_command(label='Load UUT on Table',             command=self.taskLoadTable)  
+        taskmenu.add_command(label='Load UUT to Stand',             command=self.taskLoadStand)
         taskmenu.add_separator()  
-        taskmenu.add_command(label='Stereo Detect and Move',        command=self.taskStereoMoveToPoint)  
+        taskmenu.add_command(label='Unload UUT from Stand',        command=self.taskUnLoadStand) 
+        taskmenu.add_command(label='Unload UUT from Table',        command=self.taskUnLoadTable) 
         taskmenu.add_separator()     
         taskmenu.add_command(label='Test Precision',               command=self.helpUserManual, state="disabled")
         
@@ -1069,8 +346,7 @@ class MonitorGUI:
         graphmenu.add_checkbutton(label="Show Pose",                onvalue=1, offvalue=0,    variable=self.showHangers)
         graphmenu.add_checkbutton(label="Show IO",                  onvalue=1, offvalue=0,    variable=self.showSeparatos)
         graphmenu.add_checkbutton(label="Show Status",              onvalue=1, offvalue=0,    variable=self.showLeafs)
-        graphmenu.add_separator()
-        graphmenu.add_command(label='Show robot pose',              command=self.showAllHangers)
+
         graphmenu.add_separator()
         graphmenu.add_command(label='Render scene A',               command=self.renderScene)
         graphmenu.add_command(label='Simulate Motion',              command=self.renderSceneMotion)
@@ -1078,14 +354,18 @@ class MonitorGUI:
         #viewmenu = tk.Menu(menu,tearoff = 0 )
         #menu.add_cascade(label='View', menu=viewmenu)
         #self.win.config(menu=viewmenu)
-
         
+        # ----------------------------------------
         # Help
         helpmenu = tk.Menu(menu, tearoff = 0)
         menu.add_cascade(label='Help',        menu=helpmenu)
         helpmenu.add_command(label='User Manual',               command=self.helpUserManual)
         helpmenu.add_command(label='About/Version',             command=self.getVersion)
-        helpmenu.add_command(label='Debug On/Off',              command=self.debugOnOff)        
+        
+        helpmenu.add_separator() 
+        helpmenu.add_command(label='Debug On/Off',              command=self.debugOnOff) 
+        helpmenu.add_command(label='Log file enable',           command=self.debugOnOff)  
+        helpmenu.add_command(label='Log level',                 command=self.debugOnOff)        
         helpmenu.add_separator()
         helpmenu.add_command(label='Exit',                      command=self.finish)
 
@@ -1122,8 +402,8 @@ class MonitorGUI:
 #        self.line       = self.ax.plot(self.x_data, self.y_data, self.z_data)
         
         # matplotlib 3.5.3
-        self.ax         = self.fig.gca(projection='3d') #self.fig.add_subplot(111) # #self.fig.add_subplot(111)
-        #self.ax         = self.fig.add_subplot(projection='3d')
+        #self.ax         = self.fig.gca(projection='3d') #self.fig.add_subplot(111) # #self.fig.add_subplot(111)
+        self.ax         = self.fig.add_subplot(projection='3d')
         self.line,      = self.ax.plot(self.x_data, self.y_data, self.z_data)
         self.ax.set_xlabel("X [mm]")
         self.ax.set_ylabel("Y [mm]")
@@ -1277,11 +557,596 @@ class MonitorGUI:
         #self.hostStatus()
         pass
 
+            
+    
+    ## -----------------------------    
+    # -- Session Control ---
+    ## -----------------------------   
+    # 
+    def sessStart(self):
+        "starts all"
+        self.prg.Init() 
         
+    def getVersion(self):
+        # start
+        logger.info('Reading version  ...')
+        
+        # maybe already running
+        logger.info('App version : %s' %str(gui_version))
+        
+    def sessionSelect(self):
+        "edit parameter file"
+        
+        self.cfg.CreatePickOrderFileJson()
+        fname = self.cfg.GetPickOrderFileName()
+        webbrowser.open(fname) 
+        logger.info(fname)
+
+    def sessionSelect(self):
+        "edit session parameter file"
+         
+        self.cfg.CreateSessionFile()
+        fname = self.cfg.GetSessionFileName()
+        #webbrowser.open(fname)
+        JsonEditor(fname)
+        logger.info(fname)         
+
+    ## -----------------------------    
+    # -- Robot Control ---
+    ## -----------------------------    
+        
+    def robotConnect(self):
+        # start
+        logger.info('Starting Robot connection ...')
+        
+
+        if self.prg.rbm.is_connected():   
+            logger.info('Robot is alive')
+        else:
+            self.prg.rbm.Init()
+            logger.info('Robot is connected')
+
+        self.prg.rbm.robot_info()
+
+    def robotStop(self):
+        # start
+        logger.info('Stop Robot  ...')
+        self.prg.rbm.Stop()
+
+    def robotStatus(self):
+        # start
+        logger.info('Getting Robot status ...')
+
+        # maybe already running
+        if self.prg.rbm is None or self.prg.rbm.is_connected() is False:
+            logger.info('Connect to the robot first ...')
+            return
+        
+        stat = self.prg.rbm.robot_info()
+        logger.info(str(stat))
+
+    def robotDisConnect(self):
+        # start
+        logger.info('Disconnect from Robot ...')
+        
+        # maybe already running
+        if self.prg.rbm is None:
+            # runs 
+            pass
+        elif self.prg.rbm.is_connected():  
+            self.prg.rbm.RobotPower('off')            
+
+        logger.info('Robot is stopped')  
+        
+    def robotSetRobotSpeed(self):
+        # set speed 1-100
+        speedVal = np.maximum(10,np.minimum(200,self.sliderCount))        
+        self.robot_speed = speedVal
+        
+        logger.info('Robot speed set : %s' %str(speedVal)) 
+        
+    def robotGetGripperPose(self):
+        # read pose
+        logger.info('Robot read pose ... ') 
+        
+        # maybe already running
+        if self.rbm is None or self.rbm.Connected() is False:
+            logger.info('Connect to the robot first ...')
+            return [0]*6
+        
+        res = self.rbm.GetPosition() #getTool_xyzrxryrz()
+        robotPose = res[1]
+        
+        robotPose[0] = robotPose[0] * 1000
+        robotPose[1] = robotPose[1] * 1000
+        robotPose[2] = robotPose[2] * 1000
+        logger.info('Robot pose is (rad): %s' %str(robotPose))
+        robotPose[3] = np.rad2deg(robotPose[3])
+        robotPose[4] = np.rad2deg(robotPose[4])
+        robotPose[5] = np.rad2deg(robotPose[5])
+        logger.info('Robot pose is : %s' %str(robotPose))
+
+        self.robot_pose = robotPose
+        return robotPose
+    
+    def robotSetGripperPose(self):
+        # set pose
+        logger.info('Robot set pose GUI ... ') 
+        
+        robotPose = self.robotGetGripperPose()
+        poseGui   = PoseGUI(robotPose)
+        robotPose = poseGui.pose
+   
+        logger.info('Robot pose from user input : %s' %str(robotPose))
+
+        self.robotAbsoluteMovePose(robotPose)
+
+        return robotPose
+       
+    def robotMarkWorkPosition(self):
+        # read pose
+        logger.info('Robot shows work area ... ') 
+
+
+
+    def robotGoHome(self):
+        # read pose
+        logger.info('Robot home pose ... ') 
+        self.prg.rbm.MoveRobotHomePosition()
+
+    def robotSetHomePose(self):
+        # setting home pose
+        logger.info('Robot set current pose to be home pose ... TBD ') 
+        
+
+
+    def robotGripperOnOff(self,val = 1):
+        # set gripper
+        if val < 0.5:
+            self.rbm.SetGripper('close')
+        else:
+            self.rbm.SetGripper('open')
+            
+        logger.info('Robot gripper command %d.' %(val)) 
+        
+    def robotDiffMovePose(self, dPose = np.zeros((1,6))):
+        # read pose
+        # maybe already running
+        if self.rbm is None or self.rbm.is_connected() is False:
+            logger.info('Connect to the robot first ...')
+            return
+
+        logger.info('Robot read pose and move ... ')         
+        
+        res = self.rbm.getmovel() #getTool_xyzrxryrz()
+        isOk, robotPose, msg = res
+        logger.info('Robot pose is : %s' %str(np.round(robotPose,2)))
+        if not isOk:
+            logger.info('Can not read position')
+            return
+        
+        # dPose[0] = dPose[0] / 1000
+        # dPose[1] = dPose[1] / 1000
+        # dPose[2] = dPose[2] / 1000
+        # dPose[3] = np.deg2rad(dPose[3])
+        # dPose[4] = np.deg2rad(dPose[4])
+        # dPose[5] = np.deg2rad(dPose[5])
+
+        robotPose[0] = robotPose[0] + dPose[0]
+        robotPose[1] = robotPose[1] + dPose[1]
+        robotPose[2] = robotPose[2] + dPose[2]
+        robotPose[3] = robotPose[3] + dPose[3]
+        robotPose[4] = robotPose[4] + dPose[4]
+        robotPose[5] = robotPose[5] + dPose[5]
+        
+        logger.info('Going to Robot pose %s ' %str(robotPose))
+        self.rbm.setmovel(robotPose, num1 = str(self.robot_speed), num2= str(self.robot_speed), num3= str(self.robot_speed))
+        
+    def robotAbsoluteMovePose(self, dPose = [0]*6):
+        # move to euler pose
+
+        #logger.info('Robot read pose and move ... ') 
+        logger.info('Going to Robot pose [mm, deg] %s ' %str(np.round(dPose,2)))
+
+        robotPose    = dPose.copy() #np.array(dPose).copy()
+        
+#        robotPose[0] = dPose[0] / 1000
+#        robotPose[1] = dPose[1] / 1000
+#        robotPose[2] = dPose[2] / 1000
+#        robotPose[3] = np.deg2rad(dPose[3])
+#        robotPose[4] = np.deg2rad(dPose[4])
+#        robotPose[5] = np.deg2rad(dPose[5])
+
+        
+        #logger.info('Going to Robot pose [m,rad]%s ' %str(robotPose))
+        self.rbm.set_pose_euler(robotPose)
+        return 
+    
+
+    ## ------------------------------------  
+    # -- Host Control ---
+    ## ------------------------------------ 
+
+    def hostStartPose6D(self):
+        # start
+        logger.info('Start host ...')
+        
+        cwd = os.getcwd()
+        os.chdir(r'..\..\Pose6D')
+        os.startfile("..\..\Pose6D\Pose6D-1915.exe")
+        os.chdir(cwd)
+
+    def hostConnect(self):
+        # start
+        logger.info('Starting host connection ...')
+        
+        # maybe already running
+        if self.vis is None:
+            #print(self.vis)
+            # runs Robot server and Multi Object Detection
+            self.vis    = HostManager(host = self.ip_vision, port = self.port_vision, debug = self.debugOn, config=self.cfg) #RobotServerThread(host = self.ip, port = self.port,  debug=self.debugOn, config = self.cfg)
+            self.vis.start()
+        elif self.vis.isAlive():   
+            logger.info('Pose6D Connection is alive')
+        else:
+            #self.vis.start()
+            logger.info('Vision Connection is restarted')
+            
+    def hostStop(self):
+        # stop
+        logger.info('Stop host  ...')
+        self.vis.stop()
+            
+    def hostStatus(self):
+        # start
+        logger.info('Getting host status ...')
+
+    def hostSendRecv(self, objId=1,objNum=1,robotPose=np.zeros((1,6)),objQ=1, msgId=1):
+        # send receive info
+        # use msgId for stereo messages
+        
+        logger.info('Client sending request to host ...')  
+        #self.vis.setRobotData(objId,objNum,robotPose,objQ)
+        self.vis.setObjectData(objId,robotPose,objQ,msgId)
+        
+        time.sleep(0.1)    
+        #objId,objNum,objPose,objQ = self.vis.getObjectData()  
+        objId,objPose,objQ = self.vis.getObjectData() 
+        if objId is None:
+            logger.info('Client Rx problem')
+        else:            
+            logger.info('Client Receives  : %s,%s,%s,%s' %(str(objId),str(objNum),str(np.round(objPose.ravel(),2)),str(objQ)))
+        
+        return objId,objNum,objPose.flatten(),objQ
+    
+    def hostDetectObject(self, robotPose = []):
+        # detect tool
+        logger.info('Detecting object pose ...')
+        if not self.vis.isAlive():
+            logger.info('Vision task is not alive','W')
+            return
+        
+        if len(robotPose) < 1:
+            robotPose = self.robot_pose
+
+        logger.info('Robot pose is : %s' %str(robotPose))
+        
+        # simple protocol
+        robId,robNum,robPose,robQ = 1,1, np.array(robotPose),1
+        objId,objNum,objPose,objQ = self.hostSendRecv(robId,robNum,robPose,robQ)
+        
+        # use object list internally
+        #self.dsp.UpdateObject(None, obj_name = '1', obj_num = 1, obj_pose = objPose )
+
+        if objQ < 0.7:
+            logger.info('Object quality is low : %s' %str(objQ))
+            objPose = robPose
+
+        objPose          = np.round(objPose,decimals=3).astype(float)
+        self.object_pose = objPose
+        logger.info('Object pose is : %s' %str(objPose))
+        return objPose
+    
+    def hostDetectTool(self):
+        # detect tool
+        logger.info('Detect tool ...')
+        if not self.vis.isAlive():
+            return
+        
+        robId,robNum,robPose,robQ = 'tool',1, np.array([0,0,0,0,0,0]),1
+        objId,objNum,objPose,objQ = self.hostSendRecv(robId,robNum,robPose,robQ)
+        
+        # use object list internally
+        self.dsp.UpdateObject(None, obj_name = 'tool', obj_num = 1, obj_pose = objPose )
+        
+    def hostDetectScrew(self):
+        # start
+        logger.info('Detect screws ...')
+        if not self.vis.isAlive():
+            return
+        
+        robId,robNum,robPose,robQ = 'screw',self.sliderCount, np.array([0,0,0,0,0,0]),1
+        objId,objNum,objPose,objQ = self.hostSendRecv(robId,robNum,robPose,robQ)        
+
+        logger.info('Vision is stopped')   
+        
+    def hostSimServerTask(self, k=0):
+        # Update info about the objects 
+        logger.info('Simulator thread is running') 
+        self.time_start = time.time()
+        time_period     = 20
+        while not self.sim.stopped:
+            # Read temperature
+            time_now    = time.time() - self.time_start
+            x_pos       = np.cos(2*np.pi*time_now/time_period)*200 + 500
+            y_pos       = np.sin(2*np.pi*time_now/time_period)*200 + 500
+
+            # server receives
+            robId,robNum,robPose,robQ =  self.sim.getRobotData()
+            if robId is not None:
+                logger.info('Server Receives  : %s,%s,%s,%s' %(str(robId),str(robNum),str(np.round(robPose.ravel(),2)),str(robQ)))
+
+            time.sleep(0.01)
+
+            # server response
+            if robId is not None:
+                robPose[0], robPose[1] = x_pos, y_pos
+                objId, objNum, objPose, objQ   = robId, robNum, robPose, 0.95 
+                logger.info('Server Sending   : %s,%s,%s,%s' %(str(objId),str(objNum),str(np.round(objPose.ravel(),2)),str(objQ)))                 
+                self.sim.setObjectData(objId, objNum, objPose, objQ)
+            
+            time.sleep(0.01)
+
+            
+        logger.info('Simulator thread is stopped')         
+        
+    def hostSimServer(self):
+        # start
+        logger.info('Simulating host connection ...')
+        
+        # maybe already running
+        if self.sim is None:
+            # runs Robot server and Multi Object Detection
+            self.sim    = hostSimulator(host = self.ip_vision, port = self.port_vision,  debug=self.debugOn)
+        #elif  not self.com.isAlive():      
+        self.sim.start() 
+        
+        # run the task to create data
+        self.btnAcquireStatus = True
+        
+        self.sim_ts = Thread(target=self.hostSimServerTask)
+        self.sim_ts.start()  
+
+    def hostDisConnect(self):
+        # start
+        logger.info('Disconnect from host ...')
+        
+        if self.sim is not None:  
+            self.sim.stop()       
+            
+        # maybe already running
+        if self.vis is not None:
+            self.vis.stop()
+            logger.info('Stopping host thread...')        
+        
+    ## ------------------------------------  
+    # -- IO Control ---
+    ## ------------------------------------ 
+    def ioConnect(self):
+        # start
+        logger.info('Starting IO connection ...')
+
+        self.prg.ioc.Init()
+        
+        if self.prg.ioc.IsConnected():   
+            logger.info('IO Connection is alive')
+        else:
+            # need to connect
+            self.prg.ioc.Init()
+            logger.info('IO Connection is initiated')
+            
+    def ioHome(self):
+        "set default state"
+        self.prg.ioc.GoHome()
+        logger.info(f'IO in Defaults')
+
+    def ioStatus(self):
+        self.prg.ioc.TestCheckStatusIO()
+        logger.info(f'Checking status')
+        
+    def ioReset(self):
+        # get specific bit info
+        addr = 0
+        self.prg.ioc.GoHome()
+        logger.info(f'IO reset to defaults') 
+        
+    def ioGetInfo(self):
+        # get specific bit info
+        val = self.prg.ioc.TestCheckStatusIO()
+        logger.info(f'IO received {val}')
+        
+    def ioSetInfo(self):
+        # get specific bit info  
+        addr = 0
+        val = 1
+        self.prg.ioc.SetOutput(addr,val)
+        logger.info(f'IO sending value {val} to {addr}')
+        
+    def ioCheckTwoButtonPush(self):
+        "two buttons on the table are pressed"
+        ret = self.prg.ioc.CheckTwoButtonPush()
+        logger.info(f'Check button pressed : {ret}')
+        
+    def ioDisconnect(self):
+        # disonnecteing
+        self.prg.ioc.Disconnect()        
+       
+    ## ------------------------------------  
+    # -- Task --      
+    ## ------------------------------------ 
+        
+    def robotMultiPointMotion(self):
+        # check multi point motion as deefined by China
+        logger.info('Starting point motion ...')
+
+#        val = 1
+#        pointNum  = len(SCAN_POINTS)
+#        for k in range(pointNum):
+#
+#            #self.robotCommState()
+#            robotPose = SCAN_POINTS[k].copy()
+#
+#            logger.info('Moving....')
+#            self.robotAbsoluteMovePose(robotPose)
+#            time.sleep(0.1)
+#
+#            logger.info('Gripper on-off')
+#            self.robotGripperOnOff(val)
+#            val = 1 - val
+#
+#            logger.info('Finishing scan point %d from %d' %(k+1,pointNum))
+        
+        self.prg.rbm.MovePathPoints()
+            
+
+        logger.info('Robot finished the scan.')
+
+    def robotDetectAndMoveToPoint(self):
+        # start
+        #logger.info('Client sending request to robot. Go Home Pose ...')
+        #self.robotAbsoluteMovePose([-356,-654,285,-90,0,140])
+
+        logger.info('Client sending request to robot ...') 
+        robotPose = self.robotGetGripperPose()
+
+        #logger.info('Client sending request to host ...') 
+        objId, objNum, objPose, objQ = self.hostSendRecv(robotPose=robotPose)
+        logger.info('Received Object pose [mm,deg] %s ' %str(np.round(objPose,2)))
+        if objQ < 0.7:
+            logger.info('Object is not detected. Not moving.')
+            return
+
+        logger.info('Client sending Command to the Robot Move Linear ...')
+        #objPose[0] = objPose[0] + SAFETY_MARGIN_Z # actually X
+        self.robotAbsoluteMovePose([objPose[0],objPose[1],objPose[2],robotPose[3],robotPose[4],robotPose[5]])
+        # self.robotAbsoluteMovePose([-400,-700,robotPose[2],robotPose[3],robotPose[4],robotPose[5]])
+
+        logger.info('Robot is at object pose - check.')
+
+    def robotScanDetectMove(self):
+        # scan multiple position detect and move to the points
+        logger.info('Starting scan %s times...' %str(self.sliderCount))
+
+        pointNum  = len(SCAN_POINTS)
+        for repeatNum in range(self.sliderCount):
+            logger.info('Repeat %s ...' %str(repeatNum))
+            for k in range(pointNum):
+
+                logger.info('Going to point %d ....' %(k+1))
+                self.robotAbsoluteMovePose(SCAN_POINTS[k])
+                #time.sleep(15)
+
+                logger.info('Touch....')
+                self.robotDetectAndMoveToPoint()
+                #time.sleep(10)
+
+                logger.info('Going from point %d ....' %(k+1))
+                self.robotAbsoluteMovePose(SCAN_POINTS[k])
+                #time.sleep(10)
+                logger.info('Finishing scan point %d from %d' %(k+1,pointNum))
+            
+
+        logger.info('Robot finished the scan.')
+
+    def taskLoadTable(self):
+        # takes several positions and compute stereo
+        logger.info('Load table task is running....')
+        self.prg.TaskStateLoadUUTToStand()
+           
+    def taskLoadStand(self):
+        # takes several positions and compute stereo
+        logger.info('Load stand task is running....')
+        self.prg.TaskStateLoadUUTToStand()
+
+    def taskUnLoadTable(self):
+        # takes several positions and compute stereo
+        logger.info('UnLoad table task is running....')
+        self.prg.TaskStateUnLoadUUTFromTable()
+           
+    def taskUnLoadStand(self):
+        # takes several positions and compute stereo
+        logger.info('UnLoad stand task is running....')
+        self.prg.TaskStateUnloadUUTFromStand()
+
+
+
+    
+    ## -----------------------------
+    # -- Display Control ---
+    ## -----------------------------
+    
+    def renderScene(self):
+        # creates new scene 
+        self.dsp.TestInitShowCameraTableTool(self.ax, self.fig)
+        logger.info('Robot new scene rendering : %s' %str('A')) 
+        
+    def renderSceneMotion(self):
+        # creates new scene 
+        self.dsp.TestInitShowCameraTableTool(self.ax, self.fig)
+        logger.info('Motion is started : %s' %str('A')) 
+        
+    def renderSceneWithGrapes(self):
+        # creates new scene 
+        self.dsp.TestInitShowCameraGripperPoints(self.ax, self.fig)
+        logger.info('Grape scene : %s' %str('A'))         
+        
+                             
+        
+
+    ## -----------------------------            
+    # -- Help  ---
+    ## -----------------------------
+        
+    def helpSystemStatus(self):
+        # start
+        logger.info('System status  ...')        
+        
+    def helpUserManual(self):
+        # start
+        logger.info('For User Manual - conatct RobotAI  ...')    
+    
+    def debugOnOff(self):
+        # switch debug
+        self.debugOn        = not self.debugOn
+        self.com.debugOn    = self.debugOn
+        logger.info('Debug switch : %d' %self.debugOn)          
+
+    def finish(self):
+        # stop tasks
+        self.btnAcquireStatus = False
+        
+        #self.hostDisConnect()
+                       
+        
+        self.mainQuit()
+        #self.win.destroy()
+        #self.win.quit()  
+        #sys.exit(1)
+        
+    def mainQuit(self):
+        # correct way to close
+        #breakpoint()
+        logger.info('Exit the application')
+        self.win.quit()     # stops mainloop
+        self.win.destroy()  # this is necessary on Windows to prevent
+                            # Fatal Python Error: PyEval_RestoreThread: NULL tstate        
+    
+
     # ---------------------------------
     # -- Change 3D view
+    # ---------------------------------
     def menuViewOptons(self, inp):
-        self.tprint('View menu :  %s' %str(inp))
+        logger.info('View menu :  %s' %str(inp))
         
         if inp == AXIS_VIEW_OPTIONS[0]: # 45-45
             self.ax.view_init(elev=45, azim=45) 
@@ -1296,6 +1161,7 @@ class MonitorGUI:
         
     # ----------------------------------------    
     # -- Task --
+    # ---------------------------------
     def acquirePositionRealTime(self, k=0):
         # Update subplots 
         self.time_start = time.time()
@@ -1306,7 +1172,7 @@ class MonitorGUI:
         griper_list         = self.dsp.GetGripperParams(extrinsics_obj)        
         
         while self.btnAcquireStatus:
-            #self.tprint('%s' %k)
+            #logger.info('%s' %k)
             # get hanger position
             self.getGripperPose()
            
@@ -1324,7 +1190,7 @@ class MonitorGUI:
             time_now    = time.time() - self.time_start                      
             time.sleep(0.01)  
             
-        self.tprint('Exiting...')
+        logger.info('Exiting...')
             
     # -- Control --            
     def btnAcquirePress(self):
@@ -1336,13 +1202,13 @@ class MonitorGUI:
             self.ts = Thread(target=self.acquirePositionRealTime)
             #self.ts.daemon = True
             self.ts.start()  
-            self.tprint('Thread is running')   
+            logger.info('Thread is running')   
             
         else:
             self.btnAcquireStatus = False
             self.btnAcquire.config(bg="gray", fg="black", text="Gripper Pose")
             #self.ts.join()
-            self.tprint('Thread is stopped')             
+            logger.info('Thread is stopped')             
        
     # ---------------------------------         
     # -- Configure --
@@ -1371,7 +1237,7 @@ class MonitorGUI:
         # Update subplots 
         self.time_start = time.time()
         while self.btnAcquireStatus:
-            #self.tprint('%s' %k)
+            #logger.info('%s' %k)
             # Read temperature
             sens_val    = self.getAccelValues()
             time_now    = time.time() - self.time_start
@@ -1421,14 +1287,14 @@ class MonitorGUI:
             self.ts = Thread(target=self.acquireAccelRealTime)
             #self.ts.daemon = True
             self.ts.start()  
-            self.tprint('Thread is running')   
+            logger.info('Thread is running')   
             
         else:
             self.btnAcquireStatus = False
             stopThread = True
             self.btnAccel.config(bg="gray", fg="black", text="Get Accel")
             #self.ts.join()
-            self.tprint('Thread is stopped')  
+            logger.info('Thread is stopped')  
             
     # ---------------------------------   
     # -- Configure -- 
@@ -1457,7 +1323,7 @@ class MonitorGUI:
         # Update subplots 
         self.time_start = time.time()
         while self.btnAcquireStatus:
-            #self.tprint('%s' %k)
+            #logger.info('%s' %k)
             # Read temperature
             sens_val    = self.getEcgRawValues()
             time_now    = time.time() - self.time_start
@@ -1505,14 +1371,14 @@ class MonitorGUI:
             self.ts = Thread(target=self.acquireEcgRawRealTime)
             #self.ts.daemon = True
             self.ts.start()  
-            self.tprint('Thread is running')   
+            logger.info('Thread is running')   
             
         else:
             self.btnAcquireStatus = False
             stopThread = True
             self.btnEcgRaw.config(bg="gray", fg="black", text="Get ECG")
             #self.ts.join()
-            self.tprint('Thread is stopped')             
+            logger.info('Thread is stopped')             
 
    # ---READ DATA FROM FILE ---------------------------------------
    # -- Setup  --
@@ -1557,7 +1423,7 @@ class MonitorGUI:
             #time_s = time.time()
             # user stop
             if stopThread: #not self.btnAcquireStatus:
-                self.tprint('Stop is detected')
+                logger.info('Stop is detected')
                 break
             
             # Read time and values
@@ -1566,7 +1432,7 @@ class MonitorGUI:
             surf_value = float(row['Surface'])
             press_value = float(row['PleuralPressure'])
             
-            #self.tprint('Time decode %f' %(time.time()-time_s))
+            #logger.info('Time decode %f' %(time.time()-time_s))
 
             # Limit x and y lists to the more recent items
             #size_limit = 300
@@ -1588,12 +1454,12 @@ class MonitorGUI:
            # scale plot in x values
             self.ax.set_xlim([xdata[0],xdata[-1]])
             
-            #self.tprint('Time set lines %f' %(time.time()-time_s))
+            #logger.info('Time set lines %f' %(time.time()-time_s))
             
             # required to update canvas and attached toolbar!
             self.canvas.draw()                         
             #time.sleep(0.01) 
-            #self.tprint('Total cycle %f' %(time.time()-time_s))
+            #logger.info('Total cycle %f' %(time.time()-time_s))
 
     # -- Control --        
     def btnFileOffLinePress(self):
@@ -1608,15 +1474,15 @@ class MonitorGUI:
             self.ts = Thread(target=self.processFileOffLine)
             #self.ts.daemon = True
             self.ts.start()  
-            self.tprint('Thread is running')   
+            logger.info('Thread is running')   
             
         else:
             self.btnAcquireStatus = False
             stopThread = True
             self.btnFileOffLine.config(bg="white", fg="black", text="Process File")
-            #self.tprint('Thread is sopping')
+            #logger.info('Thread is sopping')
             #self.ts.join()
-            self.tprint('Thread is stopped')                         
+            logger.info('Thread is stopped')                         
 
    # ---READ DATA FROM FILE AND PROCESS in ARDUINO----------
    
@@ -1654,7 +1520,7 @@ class MonitorGUI:
         for row in self.reader:
             
             if stopThread: #not self.btnAcquireStatus:
-                self.tprint('Stop is detected')
+                logger.info('Stop is detected')
                 break            
 
             # decimate
@@ -1671,7 +1537,7 @@ class MonitorGUI:
             # send receive
             alg_value = self.setFileData(valLV = lv_value, valSurf = surf_value, valPress = press_value)
             
-            #self.tprint('Time decode %f' %(time.time()-time_s))
+            #logger.info('Time decode %f' %(time.time()-time_s))
 
             # Limit x and y lists to the more recent items
             #size_limit = 300
@@ -1693,12 +1559,12 @@ class MonitorGUI:
            # scale plot in x values
             self.ax.set_xlim([xdata[0],xdata[-1]])
             
-            #self.tprint('Time set lines %f' %(time.time()-time_s))
+            #logger.info('Time set lines %f' %(time.time()-time_s))
             
             # required to update canvas and attached toolbar!
             self.canvas.draw()                         
             #time.sleep(0.01) 
-            #self.tprint('Total cycle %f' %(time.time()-time_s))
+            #logger.info('Total cycle %f' %(time.time()-time_s))
 
     # -- Control --        
     def btnFileOnLinePress(self):
@@ -1713,15 +1579,15 @@ class MonitorGUI:
             self.ts = Thread(target=self.processFileOnLine)
             #self.ts.daemon = True
             self.ts.start()  
-            self.tprint('Thread is running')   
+            logger.info('Thread is running')   
             
         else:
             self.btnAcquireStatus = False
             stopThread = True
             self.btnFileOnLine.config(bg="white", fg="black", text="File on Board")
-            #self.tprint('Thread is sopping')
+            #logger.info('Thread is sopping')
             #self.ts.join()
-            self.tprint('Thread is stopped')                         
+            logger.info('Thread is stopped')                         
       
     # ------------------------------------------
 
@@ -1804,67 +1670,9 @@ def MainGUI(version = '0000', module_dict = {}):
     global gui_version
     gui_version = version
     
-    # logging.basicConfig(handlers=[RotatingFileHandler('./file.log', maxBytes=50000000, backupCount=10)],
-    #                     level=logging.INFO, format="%(asctime)s %(levelname)-8s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
-    # log a message
+   # log a message
     logger.info('====== Starting up the program %s =======' % version)
-    # do not show the logging on the console
-    #logging.propagate = False
     
-    # Logger
-
-    #import sys
-    
-    #log.basicConfig(level=log.DEBUG, format='[%(asctime)s.%(msecs)03d] {%(filename)6s:%(lineno)3d} %(levelname)s - %(message)s',  datefmt="%M:%S")
-
-    
-
-    # # key board short cuts
-    # def keyPressedCallback(event):
-    #     #win.focus_set()
-    #     # The obvious information
-    #     c = event.keysym
-    #     s = event.state
-    #     shift = (s & 0x1) != 0
-    #     # protect
-    #     if not shift:
-    #         return
-    #     if event.char == 'a':
-    #         app.CameraImageSave()
-    #     if event.char == 'r':
-    #         app.RobotCameraImageSave()
-    #     if event.char == 'q':
-    #         app.stop = True
-    #     #print("pressed", repr(event.char))
-
-
-
-
-    #cfg         = module_dict['cfg']
-    # prj         = module_dict['prj'] # load session
-    # cam         = module_dict['cam']
-    # obj         = module_dict['obj']
-    # rob         = module_dict['rob']
-    # lbl         = module_dict['lbl']
-
-
-#    prj    = ProjectManager(config = cfg) # load session
-#    cam    = CameraManager(config = cfg)
-#    obj    = ObjectManager(config = cfg)
-#    rob    = RobotManager(config = cfg)
-#    lbl    = LabelManager(config = cfg)
-
-
-
-
-    #app         = RobotAIGUI(version, win, cam, prj, obj, rob, lbl) # object instantiated
-    # check if requested
-    #app.AutoStart()
-
-
-    #win.mainloop()
-    #app.Finish()
-
 
     win = tk.Tk()
     #win = ctk.CTk()
@@ -1881,8 +1689,6 @@ def MainGUI(version = '0000', module_dict = {}):
     win.protocol("WM_DELETE_WINDOW", gui.finish)    
     win.mainloop()
     
-    #gui.finish()
-    #logger.shutdown()
 # --------------------------
 if __name__ == '__main__':
     MainGUI()
