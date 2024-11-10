@@ -305,7 +305,7 @@ class ControllerIO:
         
         ret     = self.MoveRobotLinearAxisBackward()
         if ret != 2:
-            logger.info('Timeout  - can not reach linear axis home position','E')
+            logger.warning('Timeout  - can not reach linear axis home position')
             
     def GetTestCellDoorForwardPosition(self):
         "reads sensor forward position of the door"
@@ -439,7 +439,7 @@ class ControllerIO:
         
         ret     = self.MoveRobotLinearAxisBackward()
         if ret != 2:
-            logger.info('Timeout  - can not reach linear axis home position','E')
+            logger.warning('Timeout  - can not reach linear axis home position')
             
     ## ---------------
     # Tests

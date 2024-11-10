@@ -276,10 +276,17 @@ class MonitorGUI:
         testmenu.add_command(label='Go Home',                     command=self.robotGoHome)
         testmenu.add_command(label='Set Home Pose to Current',    command=self.robotSetHomePose)      
         testmenu.add_command(label='Set Robot Speed',             command=self.robotSetRobotSpeed)
-        testmenu.add_command(label='Gripper On/Off',              command=self.robotGripperOnOff)      
         testmenu.add_command(label='Show Work Position',          command=self.robotMarkWorkPosition)
         testmenu.add_command(label='Command And Go',              command=self.robotDetectAndMoveToPoint)
         testmenu.add_command(label='Execute Pick',                command=self.robotDetectAndMoveToPoint)
+
+        testmenu.add_separator()
+        testmenu.add_command(label='Gripper Clamp On/Off',        command=self.robotGripperOnOff)   
+        testmenu.add_command(label='Gripper Cover On/Off',        command=self.robotGripperCoverOnOff)  
+        testmenu.add_command(label='Gripper Cover Push',          command=self.prg.rbm.GripperCoverPush)       
+        testmenu.add_command(label='Gripper Cover Pull',          command=self.prg.rbm.GripperCoverPull)                   
+        testmenu.add_command(label='Gripper Membrane On',         command=self.prg.rbm.SetGripperMembraneOn)  
+        testmenu.add_command(label='Gripper Membrane Off',        command=self.prg.rbm.SetGripperMembraneOff)                    
 
         testmenu.add_separator()
         testmenu.add_command(label='Move Linear Forward',         command=self.prg.MoveLinearCylinderForward)
@@ -421,8 +428,6 @@ class MonitorGUI:
         self.x_data = []
         self.y_data = []    
         self.z_data = []
-    
-        
 
     def setupControls(self):
         # https://matplotlib.org/stable/gallery/user_interfaces/embedding_in_tk_sgskip.html
@@ -699,16 +704,25 @@ class MonitorGUI:
         logger.info('Robot set current pose to be home pose ... TBD ') 
         
 
-
     def robotGripperOnOff(self,val = 1):
         # set gripper
         if val < 0.5:
-            self.rbm.SetGripper('close')
+            self.prg.rbm.GripperClampOpen()
         else:
-            self.rbm.SetGripper('open')
+            self.prg.rbm.GripperClampClose()
             
         logger.info('Robot gripper command %d.' %(val)) 
         
+    def robotGripperCoverOnOff(self, val = 1):
+        # set gripper
+        if val < 0.5:
+            self.prg.rbm.GripperCoverPush()
+        else:
+            self.prg.rbm.GripperCoverPull()
+            
+        logger.info('Robot gripper command %d.' %(val)) 
+        
+
     def robotDiffMovePose(self, dPose = np.zeros((1,6))):
         # read pose
         # maybe already running

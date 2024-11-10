@@ -176,7 +176,7 @@ class ConfigManager:
 #                    self.Print('The default vaue of {} is updated'.format(k))
                 cfgB[k] = v
             except:
-                self.Print('Error in config file, check field: {}'.format(k),'E')
+                logger.info('Error in config file, check field: {}'.format(k))
                 ret = False
                 #break
                 

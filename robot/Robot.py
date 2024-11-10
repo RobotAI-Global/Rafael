@@ -597,7 +597,7 @@ class Robot:
         
         ret = self.CheckLinearCylinderBackward()
         if ret:
-            logger.info('Cylinder in the back position','E')
+            logger.warning('Cylinder in the back position')
             return
         
         self.SetLinearCylinderBackward()     
@@ -621,7 +621,7 @@ class Robot:
         
         ret = self.CheckLinearCylinderForward()
         if ret:
-            logger.info('Cylinder in the forward position','E')
+            logger.warning('Cylinder in the forward position')
             return
         
         self.SetLinearCylinderForward()     

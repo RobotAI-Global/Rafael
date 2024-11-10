@@ -289,7 +289,7 @@ class MainProgram:
         if home_sensor:
             logger.info('Table in home position')
         else:
-            logger.warning('Table home is not found','E')
+            logger.warning('Table home is not found')
             
             
         return home_sensor

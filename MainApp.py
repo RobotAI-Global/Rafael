@@ -13,12 +13,13 @@ installation:
     conda install -c conda-forge matplotlib
 """
 
-__version__ = '0302'
+__version__ = '0303'
 
 """
 -----------------------------
  Ver    Date     Who    Descr
 -----------------------------
+0303    10.11.24 UD     gripper on - off
 0302    09.11.24 UD     logger improve
 0201    18.10.24 UD     Merging SaarSM
 0101    11.06.24 UD     Created
