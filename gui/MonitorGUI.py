@@ -1061,7 +1061,7 @@ class MonitorGUI:
     def taskLoadTable(self):
         # takes several positions and compute stereo
         logger.info('Load table task is running....')
-        self.prg.TaskStateLoadUUTToStand()
+        self.prg.TaskStateLoadUUTToTable()
            
     def taskLoadStand(self):
         # takes several positions and compute stereo

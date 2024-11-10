@@ -53,11 +53,12 @@ SOCKET_PORT = 65432
 
 #%% Logger
 
-#import logging
-#logger      = logging.getLogger("robot")
 
-from gui.Logger import logger
-
+try:
+    from gui.Logger import logger
+except:
+    import logging
+    logger      = logging.getLogger("robot")
 
 #%% Main
 
@@ -381,6 +382,14 @@ class Robot:
             
         #logger.info(str(target))
         return target  
+    
+    def get_point_pose_joint(self, g_Type = "Position", pointName = "Home"):
+        "g_Type - Position or Joint"
+ 
+        # list of joint angles
+        target       = self.get_point(pointName, 'Joint')
+
+        return target      
     
     def get_current_pose(self, g_Type = 'Position'):
         if g_Type == 'Position':
@@ -709,10 +718,15 @@ class Robot:
 
     def MoveRobotHomePosition(self):
         "check the home position"
-        pose_home = self.GetHomePosition()
         pose_curr = self.GetCurrentPosition()
-        
+        logger.info(pose_curr)
+        #pose_home = self.GetHomePosition()
+        self.MovePathPoints(['Home'])
+        #logger.info(pose_home)
+        pose_home = self.GetCurrentPosition()
+        logger.info(pose_curr)
         ret       = np.all(pose_home == pose_curr)
+        
         return True
     
     def CheckAirCution(self):
@@ -735,8 +749,8 @@ class Robot:
         self.set_gripper('open')        
         return ret
     
-    def MovePathPoints(self, point_list = []):
-        "executes motion over defined point list"
+    def MovePathPointsCartesian(self, point_list = []):
+        "executes motion over defined point list - cartesian"
         if len(point_list) < 1:
             point_list = ['Home', 'AboveTable','TakePart','AboveTable','InfrontDoor','InfrontTestStand','TestStand']
             
@@ -745,8 +759,14 @@ class Robot:
         for k in range(repeat_num):
             for pname in point_list:
                 next_pose = self.get_point_pose('Position', pname)
-                self.move_linear_from_current_position([next_pose], 5, 1)
-                logger.info('Finished : %s' %pname)
+                try:
+                    self.move_linear_from_current_position([next_pose], 5, 1)
+                    logger.info('Finished : %s' %pname)
+                except Exception as e:
+                    logger.warning('Failed to move : %s' %pname)
+                    print(e)
+
+                
                 time.sleep(0.1)
                 
 #            for pname in point_list_reverse:
@@ -756,6 +776,34 @@ class Robot:
 #                time.sleep(0.1)                
 #                
         logger.info('MovePathPoints done')
+
+    def MovePathPoints(self, point_list = []):
+        "executes motion over defined point list - using joints"
+        if len(point_list) < 1:
+            point_list = ['Home', 'AboveTable','TakePart','AboveTable','InfrontDoor','InfrontTestStand','TestStand']
+            
+        point_list_reverse = point_list[::-1]
+        repeat_num = 1
+        for k in range(repeat_num):
+            for pname in point_list:
+                next_pose = self.get_point_pose_joint('Position', pname)
+                try:
+                    self.move_joint([next_pose], 5, 1)
+                    logger.info('Finished : %s' %pname)
+                except Exception as e:
+                    logger.warning('Failed to move : %s' %pname)
+                    print(e)
+
+                
+                time.sleep(0.1)
+                
+#            for pname in point_list_reverse:
+#                next_pose = self.get_point_pose('Position', pname)
+#                self.move_linear_from_current_position([next_pose], 5, 1) 
+#                logger.info('Finished : %s' %pname)
+#                time.sleep(0.1)                
+#                
+        logger.info('MovePathPointsJoints done')        
 
     def PickTestConnector(self):
         "picking test connector"
@@ -889,11 +937,18 @@ class TestRobotAPI: #unittest.TestCase
         self.r.switch_to_automatic_mode()
         #self.r.robot_info()
         
+        # linear motion
         p = self.r.get_current_cartesian_pose()
-        self.r.tprint(p)
+        logger.info(p)
         p[0] = p[0] - 0.1
-    
         self.r.move_linear_from_current_position([p], 5, 1)      
+
+        # joints motion
+        pj = self.r.get_current_pose('Joint')
+        print('Current Joint: ', pj)
+        logger.info(pj)
+        pj[0] = pj[0] + 0.1
+        self.r.move_joint([pj], 5, 1)         
         
     def TestCommands(self):
         self.r.robot_info() 
@@ -903,7 +958,7 @@ class TestRobotAPI: #unittest.TestCase
         
         
         p = self.r.get_current_cartesian_pose()
-        self.r.tprint(p)
+        logger.info(p)
         p[0] = p[0] - 0.1
     
         self.r.move_linear_from_current_position([p], 5, 1)          
@@ -972,6 +1027,7 @@ class TestRobotAPI: #unittest.TestCase
         "move between differnet points defined in the robot"
         
         self.r.MovePathPoints()
+        #self.r.MovePathPointsJoints()
                 
         print('TestPathMotion')
         
@@ -1041,9 +1097,10 @@ if __name__ == '__main__':
     #tapi.TestSwitchTool() # 
     #tapi.TestGripper() # 
     #tapi.TestIO() # 
-    #tapi.TestPathMotion()
+    tapi.TestPathMotion()
     #tapi.TestFunctionalInputs() # ok
     #tapi.TestSetLinearCylinderForwardBackward() # ok
     #tapi.TestMoveLinearCylinderForwardBackward() # ok
-    tapi.TestSetTableDriver()
+    #tapi.TestSetTableDriver()
     #tapi.TestGripperFunctions()
+
