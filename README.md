@@ -13,8 +13,10 @@ py -m pip install --upgrade pip
 
 # insralling packages
 py -m pip install matplotlib
-py -m pip install opencv-python
 py -m pip install scipy
+
+# network
+configure your computer to Ethernet IP : 192.168.2.30
 
 # compile
 pip install pyinstaller
