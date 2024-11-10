@@ -15,3 +15,7 @@ py -m pip install --upgrade pip
 py -m pip install matplotlib
 py -m pip install opencv-python
 py -m pip install scipy
+
+# compile
+pip install pyinstaller
+pyinstaller --onefile MainApp.py 

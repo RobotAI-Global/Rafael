@@ -11,6 +11,7 @@ LIRY:
     
 installation:
     conda install -c conda-forge matplotlib
+    
 """
 
 __version__ = '0303'
