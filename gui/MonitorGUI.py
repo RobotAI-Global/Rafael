@@ -659,16 +659,15 @@ class MonitorGUI:
         #     logger.info('Connect to the robot first ...')
         #     return [0]*6
         
-        res = self.prg.rbm.GetPosition() #getTool_xyzrxryrz()
-        robotPose = res[1]
+        robotPose = self.prg.rbm.get_pose_euler() #getTool_xyzrxryrz()
         
-        robotPose[0] = robotPose[0] * 1000
-        robotPose[1] = robotPose[1] * 1000
-        robotPose[2] = robotPose[2] * 1000
-        logger.info('Robot pose is (rad): %s' %str(robotPose))
-        robotPose[3] = np.rad2deg(robotPose[3])
-        robotPose[4] = np.rad2deg(robotPose[4])
-        robotPose[5] = np.rad2deg(robotPose[5])
+        # robotPose[0] = robotPose[0] * 1000
+        # robotPose[1] = robotPose[1] * 1000
+        # robotPose[2] = robotPose[2] * 1000
+        # logger.info('Robot pose is (rad): %s' %str(robotPose))
+        # robotPose[3] = np.rad2deg(robotPose[3])
+        # robotPose[4] = np.rad2deg(robotPose[4])
+        # robotPose[5] = np.rad2deg(robotPose[5])
         logger.info('Robot pose is : %s' %str(robotPose))
 
         self.robot_pose = robotPose

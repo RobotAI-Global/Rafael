@@ -659,6 +659,9 @@ class MainProgram:
 #            
 #        # 3. Check robot gripper in open position
 #        ret         = self.rbm.CheckGripperOpen() and ret
+        ret         = self.rbm.GripperClampOpen()
+
+        
 #        if not ret:
 #            logger.info('Gripper is not in open position')
 #            self.error = ERROR.GRIPPER_OPEN_POSITION
@@ -710,9 +713,12 @@ class MainProgram:
             logger.info('Robot plug test connector')
             self.error = ERROR.ROBOT_PLUG_CONNECTOR
             next_state = STATE.ERROR 
-            return msg_out, next_state              
+            return msg_out, next_state  
+
+        # 13. gripper open
+        ret         = self.rbm.GripperClampClose()      
+
  
-            
         # 14. move robot home
         ret         = self.rbm.MoveRobotHomePosition() 
         if not ret:
@@ -798,7 +804,10 @@ class MainProgram:
             logger.info('Robot put test connector')
             self.error = ERROR.ROBOT_PICK_CONNECTOR
             next_state = STATE.ERROR 
-            return msg_out, next_state              
+            return msg_out, next_state    
+
+        # 5.1 Open gripper
+        ret         = self.rbm.GripperClampClose()               
             
         # 6. take out uut
         ret        = self.rbm.UnLoadUUTFromTester() 
@@ -837,7 +846,10 @@ class MainProgram:
             logger.info('Robot put on table UUT failure')
             self.error = ERROR.ROBOT_UNLOAD_UUT
             next_state = STATE.ERROR
-            return msg_out, next_state              
+            return msg_out, next_state  
+
+        # 10.5 
+        ret         = self.rbm.GripperClampOpen()              
             
         # 11. Rotate the table
         ret        = self.MoveTableNextStation()      

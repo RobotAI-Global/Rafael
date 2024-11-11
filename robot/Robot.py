@@ -884,7 +884,7 @@ class Robot:
     def UnLoadUUTFromTester(self):
         "loads UUT to tester"
         
-        point_list = ['InfrontTestStand','InfrontDoor','Home']
+        point_list = ['InfrontDoor','InfrontTestStand','TestStand','InfrontTestStand','InfrontDoor','Home']
         self.MovePathPoints(point_list)
         
         # lock UUT on tester
