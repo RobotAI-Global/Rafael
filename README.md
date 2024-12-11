@@ -1,23 +1,24 @@
 # RobotManager
-Manager of the robot for Rafael System
+Manager of the robot and perepherial equipment in the integrated system
 
-# creating virtual env
-c:\python -m venv C:\robotai\SW\PyEnv\RobotMngr
-where python
+# Installation Windows
 
-# activating
+1 . creating virtual env
+C:\python -m venv C:\robotai\SW\PyEnv\RobotMngr
+
+2. activating
 C:\robotai\SW\PyEnv\RobotMngr\Scripts\activate.bat
 
-# updating pip
+3. updating pip
 py -m pip install --upgrade pip
 
-# insralling packages
+4. installing packages
 py -m pip install matplotlib
 py -m pip install scipy
 
-# network
+5. network
 configure your computer to Ethernet IP : 192.168.2.30
 
-# compile
+# Compile
 pip install pyinstaller
 pyinstaller --onefile MainApp.py 
