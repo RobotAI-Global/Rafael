@@ -1,7 +1,11 @@
-# RobotManager
-Manager of the robot and perepherial equipment in the integrated system
+# Robot Manager
+Manager of the robot and perepherial equipment in the integrated system:
+1. Neura robot control
+2. Ethernet based discretes
+3. Host communication
+4. Main control module
 
-# Installation Windows
+# Installation on Windows
 
 1 . creating virtual env
 C:\python -m venv C:\robotai\SW\PyEnv\RobotMngr
@@ -20,5 +24,5 @@ py -m pip install scipy
 configure your computer to Ethernet IP : 192.168.2.30
 
 # Compile
-pip install pyinstaller
-pyinstaller --onefile MainApp.py 
+1. pip install pyinstaller
+2. pyinstaller --onefile MainApp.py 
